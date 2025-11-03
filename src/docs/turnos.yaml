@@ -1,0 +1,477 @@
+paths:
+    /api/turnos/paciente/{idPaciente}/doctor/{idDoctor}:
+        post:
+            tags:
+                - Turnos
+            summary: Crear un nuevo turno
+            description: Permite crear un turno para un paciente con un doctor específico
+            parameters:
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del paciente
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+                - in: path
+                  name: idDoctor
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del doctor
+                  example: '60d5ec49eb3e4f2b8c8e9f1b'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - fecha
+                                - hora
+                            properties:
+                                fecha:
+                                    type: string
+                                    format: date
+                                    description: Fecha del turno (YYYY-MM-DD)
+                                    example: '2024-02-15'
+                                hora:
+                                    type: string
+                                    description: Hora del turno (HH:MM)
+                                    example: '10:30'
+            responses:
+                '201':
+                    description: Turno creado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Turno creado correctamente'
+                                    turno:
+                                        $ref: '#/components/schemas/TurnoResponse'
+                '400':
+                    description: Error de validación
+                '409':
+                    description: Conflicto de horario
+
+    /api/turnos:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener todos los turnos
+            description: Obtiene la lista de todos los turnos del sistema
+            responses:
+                '200':
+                    description: Lista de turnos obtenida exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/{idTurno}:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turno por ID
+            description: Obtiene la información de un turno específico
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            responses:
+                '200':
+                    description: Turno encontrado
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TurnoResponse'
+                '404':
+                    description: Turno no encontrado
+
+        put:
+            tags:
+                - Turnos
+            summary: Actualizar observaciones del turno
+            description: Permite actualizar las observaciones de un turno
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                observaciones:
+                                    type: string
+                                    description: Observaciones del turno
+                                    example: 'Paciente presenta síntomas de...'
+            responses:
+                '200':
+                    description: Turno actualizado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TurnoResponse'
+                '404':
+                    description: Turno no encontrado
+
+    /api/turnos/paciente/{idPaciente}:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos por paciente
+            description: Obtiene todos los turnos de un paciente específico
+            parameters:
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del paciente
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Turnos del paciente obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/doctor/{idDoctor}:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos por doctor
+            description: Obtiene todos los turnos de un doctor específico
+            parameters:
+                - in: path
+                  name: idDoctor
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del doctor
+                  example: '60d5ec49eb3e4f2b8c8e9f1b'
+            responses:
+                '200':
+                    description: Turnos del doctor obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/doctor/{idDoctor}/fecha:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos de un doctor por fecha
+            description: Obtiene todos los turnos de un doctor en una fecha específica
+            parameters:
+                - in: path
+                  name: idDoctor
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del doctor
+                  example: '60d5ec49eb3e4f2b8c8e9f1b'
+                - in: query
+                  name: fecha
+                  required: true
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha a consultar (YYYY-MM-DD)
+                  example: '2024-02-15'
+            responses:
+                '200':
+                    description: Turnos obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/fecha:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos por fecha
+            description: Obtiene todos los turnos de una fecha específica
+            parameters:
+                - in: query
+                  name: fecha
+                  required: true
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha a consultar (YYYY-MM-DD)
+                  example: '2024-02-15'
+            responses:
+                '200':
+                    description: Turnos obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/estado/pendiente:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos pendientes
+            description: Obtiene todos los turnos con estado pendiente
+            responses:
+                '200':
+                    description: Turnos pendientes obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/estado/{estado}/paciente/{idPaciente}:
+        get:
+            tags:
+                - Turnos
+            summary: Obtener turnos por estado y paciente
+            description: Obtiene turnos de un paciente específico filtrados por estado
+            parameters:
+                - in: path
+                  name: estado
+                  required: true
+                  schema:
+                      type: string
+                      enum: [pendiente, confirmado, realizado, cancelado]
+                  description: Estado del turno
+                  example: 'confirmado'
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del paciente
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Turnos obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TurnoResponse'
+
+    /api/turnos/{idTurno}/cancelado:
+        put:
+            tags:
+                - Turnos
+            summary: Cancelar un turno
+            description: Cambia el estado del turno a "cancelado"
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            responses:
+                '200':
+                    description: Turno cancelado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Turno cancelado correctamente'
+                                    turno:
+                                        $ref: '#/components/schemas/TurnoResponse'
+                '400':
+                    description: ID inválido
+                '404':
+                    description: Turno no encontrado
+
+    /api/turnos/{idTurno}/realizado:
+        put:
+            tags:
+                - Turnos
+            summary: Marcar turno como realizado
+            description: Cambia el estado del turno a "realizado" (solo doctores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            responses:
+                '200':
+                    description: Turno marcado como realizado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Turno marcado como realizado'
+                                    turno:
+                                        $ref: '#/components/schemas/TurnoResponse'
+                '400':
+                    description: ID inválido
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo doctores)
+                '404':
+                    description: Turno no encontrado
+
+    /api/turnos/{idTurno}/confirmado:
+        put:
+            tags:
+                - Turnos
+            summary: Confirmar un turno
+            description: Cambia el estado del turno a "confirmado" (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            responses:
+                '200':
+                    description: Turno confirmado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Turno confirmado correctamente'
+                                    turno:
+                                        $ref: '#/components/schemas/TurnoResponse'
+                '400':
+                    description: ID inválido
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                '404':
+                    description: Turno no encontrado
+
+components:
+    schemas:
+        TurnoResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del turno
+                    example: '60d5ec49eb3e4f2b8c8e9f1c'
+                paciente:
+                    type: object
+                    description: Información del paciente
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1a'
+                        nombre:
+                            type: string
+                            example: 'Juan'
+                        apellido:
+                            type: string
+                            example: 'Pérez'
+                        dni:
+                            type: string
+                            example: '12345678'
+                doctor:
+                    type: object
+                    description: Información del doctor
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1b'
+                        nombre:
+                            type: string
+                            example: 'Carlos'
+                        apellido:
+                            type: string
+                            example: 'García'
+                        especialidad:
+                            type: string
+                            example: 'Cardiología'
+                        matricula:
+                            type: string
+                            example: 'MP123456'
+                fecha:
+                    type: string
+                    format: date
+                    description: Fecha del turno
+                    example: '2024-02-15'
+                hora:
+                    type: string
+                    description: Hora del turno
+                    example: '10:30'
+                estado:
+                    type: string
+                    enum: [pendiente, confirmado, realizado, cancelado]
+                    description: Estado actual del turno
+                    example: 'pendiente'
+                observaciones:
+                    type: string
+                    description: Observaciones del turno
+                    example: 'Paciente presenta síntomas de...'
+                fechaCreacion:
+                    type: string
+                    format: date-time
+                    description: Fecha de creación del turno
+                    example: '2024-01-15T10:30:00.000Z'
+                fechaActualizacion:
+                    type: string
+                    format: date-time
+                    description: Fecha de última actualización
+                    example: '2024-01-15T10:30:00.000Z'

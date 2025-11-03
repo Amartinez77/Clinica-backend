@@ -1,0 +1,35 @@
+{
+	"name": "consultorio_backend",
+	"version": "1.0.0",
+	"description": "backend para consultorios",
+	"license": "ISC",
+	"author": "Grupo03",
+	"type": "module",
+	"main": "index.js",
+	"scripts": {
+		"dev": "nodemon src/index.js",
+		"start": "node src/index.js",
+		"dev:api": "nodemon src/index.js --api",
+		"setup:especialidades": "node scripts/generateEspecialidades.js",
+		"setup:test-data": "node scripts/generateTestData.js"
+	},
+	"dependencies": {
+		"@scalar/express-api-reference": "^0.8.7",
+		"bcryptjs": "^3.0.2",
+		"colors": "^1.4.0",
+		"cors": "^2.8.5",
+		"dotenv": "^16.5.0",
+		"express": "^5.1.0",
+		"express-validator": "^7.2.1",
+		"firebase-admin": "^13.4.0",
+		"jsonwebtoken": "^9.0.2",
+		"mercadopago": "^2.8.0",
+		"mongoose": "^8.16.0",
+		"morgan": "^1.10.0",
+		"swagger-jsdoc": "^6.2.8",
+		"swagger-ui-express": "^5.0.1"
+	},
+	"devDependencies": {
+		"nodemon": "^3.1.10"
+	}
+}

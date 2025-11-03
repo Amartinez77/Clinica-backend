@@ -1,0 +1,408 @@
+paths:
+    /api/auth/login:
+        post:
+            tags:
+                - Autenticación
+            summary: Iniciar sesión con DNI y contraseña
+            description: Permite a los usuarios (pacientes, doctores, administradores) autenticarse con DNI y contraseña para obtener un token JWT
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - dni
+                                - password
+                            properties:
+                                dni:
+                                    type: string
+                                    minLength: 7
+                                    maxLength: 8
+                                    description: DNI del usuario
+                                    example: '12345678'
+                                password:
+                                    type: string
+                                    minLength: 6
+                                    description: Contraseña del usuario
+                                    example: 'miPassword123'
+            responses:
+                '200':
+                    description: Autenticación exitosa
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Autenticación exitosa'
+                                    token:
+                                        type: string
+                                        description: Token JWT para autorización
+                                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                                    usuario:
+                                        $ref: '#/components/schemas/UsuarioResponse'
+                '400':
+                    description: Error de validación en los datos enviados
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'DNI y contraseña son requeridos'
+                '401':
+                    description: Credenciales inválidas
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Credenciales inválidas'
+                '404':
+                    description: Usuario no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Usuario no encontrado'
+
+    /api/auth/login/firebase:
+        post:
+            tags:
+                - Autenticación
+            summary: Iniciar sesión con Firebase/Google
+            description: Permite la autenticación usando Firebase Authentication (Google)
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - firebaseToken
+                            properties:
+                                firebaseToken:
+                                    type: string
+                                    description: Token de Firebase obtenido del frontend
+                                    example: 'firebase_token_here'
+                                dni:
+                                    type: string
+                                    description: DNI para vincular con la cuenta (opcional)
+                                    example: '12345678'
+            responses:
+                '200':
+                    description: Autenticación con Firebase exitosa
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Autenticación con Firebase exitosa'
+                                    token:
+                                        type: string
+                                        description: Token JWT para autorización
+                                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                                    usuario:
+                                        $ref: '#/components/schemas/UsuarioResponse'
+                                    requiereDni:
+                                        type: boolean
+                                        description: Indica si es necesario vincular un DNI
+                                        example: false
+                '400':
+                    description: Token de Firebase inválido
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token de Firebase inválido'
+                '404':
+                    description: Usuario no encontrado (requiere vincular DNI)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Usuario no encontrado. Debe vincular su DNI.'
+                                    requiereDni:
+                                        type: boolean
+                                        example: true
+
+    /api/auth/vincular-dni:
+        post:
+            tags:
+                - Autenticación
+            summary: Vincular DNI a cuenta de Firebase
+            description: Permite vincular un DNI existente a una cuenta autenticada con Firebase
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - firebaseToken
+                                - dni
+                            properties:
+                                firebaseToken:
+                                    type: string
+                                    description: Token de Firebase del usuario autenticado
+                                    example: 'firebase_token_here'
+                                dni:
+                                    type: string
+                                    minLength: 7
+                                    maxLength: 8
+                                    description: DNI a vincular con la cuenta
+                                    example: '12345678'
+            responses:
+                '200':
+                    description: DNI vinculado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'DNI vinculado exitosamente'
+                                    token:
+                                        type: string
+                                        description: Token JWT para autorización
+                                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                                    usuario:
+                                        $ref: '#/components/schemas/UsuarioResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token de Firebase o DNI inválido'
+                '404':
+                    description: Usuario con DNI no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No se encontró un usuario con ese DNI'
+                '409':
+                    description: DNI ya vinculado a otra cuenta
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Este DNI ya está vinculado a otra cuenta'
+
+    /api/auth/me:
+        get:
+            tags:
+                - Autenticación
+            summary: Obtener perfil del usuario autenticado
+            description: Retorna la información del usuario actualmente autenticado
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Perfil obtenido exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    usuario:
+                                        $ref: '#/components/schemas/UsuarioResponse'
+                '401':
+                    description: Token inválido o expirado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token inválido'
+                '404':
+                    description: Usuario no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Usuario no encontrado'
+
+    /api/auth/reset-password:
+        post:
+            tags:
+                - Autenticación
+            summary: Restablecer contraseña
+            description: Permite restablecer la contraseña de un usuario
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - dni
+                                - nuevaPassword
+                            properties:
+                                dni:
+                                    type: string
+                                    minLength: 7
+                                    maxLength: 8
+                                    description: DNI del usuario
+                                    example: '12345678'
+                                nuevaPassword:
+                                    type: string
+                                    minLength: 6
+                                    description: Nueva contraseña
+                                    example: 'nuevaPassword123'
+                                codigoVerificacion:
+                                    type: string
+                                    description: Código de verificación (si aplica)
+                                    example: '123456'
+            responses:
+                '200':
+                    description: Contraseña restablecida exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Contraseña restablecida exitosamente'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Datos inválidos'
+                '404':
+                    description: Usuario no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Usuario no encontrado'
+
+components:
+    schemas:
+        UsuarioResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del usuario
+                    example: '60d5ec49eb3e4f2b8c8e9f1a'
+                dni:
+                    type: string
+                    description: DNI del usuario
+                    example: '12345678'
+                nombre:
+                    type: string
+                    description: Nombre del usuario
+                    example: 'Juan'
+                apellido:
+                    type: string
+                    description: Apellido del usuario
+                    example: 'Pérez'
+                email:
+                    type: string
+                    format: email
+                    description: Email del usuario
+                    example: 'juan.perez@email.com'
+                rol:
+                    type: string
+                    enum: [paciente, Doctor, admin]
+                    description: Rol del usuario en el sistema
+                    example: 'paciente'
+                telefono:
+                    type: string
+                    description: Teléfono del usuario
+                    example: '1234567890'
+                fechaRegistro:
+                    type: string
+                    format: date-time
+                    description: Fecha de registro del usuario
+                    example: '2024-01-15T10:30:00.000Z'
+                activo:
+                    type: boolean
+                    description: Estado del usuario
+                    example: true
+                firebase:
+                    type: object
+                    description: Información de Firebase (si está vinculado)
+                    properties:
+                        uid:
+                            type: string
+                            example: 'firebase_uid_123'
+                        email:
+                            type: string
+                            example: 'usuario@gmail.com'
+                        nombre:
+                            type: string
+                            example: 'Juan Pérez'
+
+        LoginRequest:
+            type: object
+            required:
+                - dni
+                - password
+            properties:
+                dni:
+                    type: string
+                    minLength: 7
+                    maxLength: 8
+                    description: DNI del usuario
+                    example: '12345678'
+                password:
+                    type: string
+                    minLength: 6
+                    description: Contraseña del usuario
+                    example: 'miPassword123'
+
+        LoginResponse:
+            type: object
+            properties:
+                mensaje:
+                    type: string
+                    example: 'Autenticación exitosa'
+                token:
+                    type: string
+                    description: Token JWT para autorización
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                usuario:
+                    $ref: '#/components/schemas/UsuarioResponse'

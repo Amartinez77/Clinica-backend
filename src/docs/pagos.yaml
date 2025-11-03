@@ -1,0 +1,344 @@
+paths:
+    /api/pagos:
+        post:
+            tags:
+                - Pagos
+            summary: Crear un nuevo pago
+            description: Permite registrar un pago para un turno específico
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - monto
+                                - metodoPago
+                                - turno
+                            properties:
+                                monto:
+                                    type: number
+                                    minimum: 0
+                                    description: Monto del pago en pesos argentinos
+                                    example: 5000
+                                metodoPago:
+                                    type: string
+                                    enum: [mercadopago, efectivo, transferencia]
+                                    description: Método de pago utilizado
+                                    example: 'mercadopago'
+                                turno:
+                                    type: string
+                                    pattern: '^[0-9a-fA-F]{24}$'
+                                    description: ID del turno al que corresponde el pago
+                                    example: '60d5ec49eb3e4f2b8c8e9f1c'
+                                descripcion:
+                                    type: string
+                                    description: Descripción adicional del pago (opcional)
+                                    example: 'Pago de consulta cardiológica'
+                                referencia:
+                                    type: string
+                                    description: Número de referencia o transacción (opcional)
+                                    example: 'MP123456789'
+            responses:
+                '201':
+                    description: Pago creado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Pago registrado correctamente'
+                                    pago:
+                                        $ref: '#/components/schemas/PagoResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    errors:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                msg:
+                                                    type: string
+                                                    example: 'El monto debe ser un número'
+                                                param:
+                                                    type: string
+                                                    example: 'monto'
+                '404':
+                    description: Turno no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Turno no encontrado'
+                '409':
+                    description: Ya existe un pago para este turno
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Ya existe un pago registrado para este turno'
+
+    /api/pagos/{idPago}:
+        get:
+            tags:
+                - Pagos
+            summary: Obtener pago por ID
+            description: Obtiene la información de un pago específico
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: idPago
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del pago
+                  example: '60d5ec49eb3e4f2b8c8e9f1e'
+            responses:
+                '200':
+                    description: Pago encontrado
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PagoResponse'
+                '401':
+                    description: No autorizado
+                '404':
+                    description: Pago no encontrado
+
+        put:
+            tags:
+                - Pagos
+            summary: Actualizar estado del pago
+            description: Permite actualizar el estado de un pago (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: idPago
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del pago
+                  example: '60d5ec49eb3e4f2b8c8e9f1e'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                estado:
+                                    type: string
+                                    enum: [pendiente, aprobado, rechazado, reembolsado]
+                                    description: Nuevo estado del pago
+                                    example: 'aprobado'
+                                observaciones:
+                                    type: string
+                                    description: Observaciones sobre el cambio de estado
+                                    example: 'Pago verificado y aprobado'
+            responses:
+                '200':
+                    description: Estado del pago actualizado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Estado del pago actualizado correctamente'
+                                    pago:
+                                        $ref: '#/components/schemas/PagoResponse'
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                '404':
+                    description: Pago no encontrado
+
+    /api/pagos/turno/{idTurno}:
+        get:
+            tags:
+                - Pagos
+            summary: Obtener pagos por turno
+            description: Obtiene todos los pagos asociados a un turno específico
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            responses:
+                '200':
+                    description: Pagos obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/PagoResponse'
+                '401':
+                    description: No autorizado
+                '404':
+                    description: Turno no encontrado
+
+    /api/pagos/estado/{estado}:
+        get:
+            tags:
+                - Pagos
+            summary: Obtener pagos por estado
+            description: Obtiene todos los pagos filtrados por estado (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: estado
+                  required: true
+                  schema:
+                      type: string
+                      enum: [pendiente, aprobado, rechazado, reembolsado]
+                  description: Estado de los pagos a obtener
+                  example: 'pendiente'
+            responses:
+                '200':
+                    description: Pagos obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/PagoResponse'
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+
+components:
+    schemas:
+        PagoResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del pago
+                    example: '60d5ec49eb3e4f2b8c8e9f1e'
+                monto:
+                    type: number
+                    description: Monto del pago
+                    example: 5000
+                metodoPago:
+                    type: string
+                    enum: [mercadopago, efectivo, transferencia]
+                    description: Método de pago utilizado
+                    example: 'mercadopago'
+                estado:
+                    type: string
+                    enum: [pendiente, aprobado, rechazado, reembolsado]
+                    description: Estado actual del pago
+                    example: 'aprobado'
+                turno:
+                    type: object
+                    description: Información del turno asociado
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1c'
+                        fecha:
+                            type: string
+                            format: date
+                            example: '2024-02-15'
+                        hora:
+                            type: string
+                            example: '10:30'
+                        paciente:
+                            type: object
+                            properties:
+                                nombre:
+                                    type: string
+                                    example: 'Juan'
+                                apellido:
+                                    type: string
+                                    example: 'Pérez'
+                        doctor:
+                            type: object
+                            properties:
+                                nombre:
+                                    type: string
+                                    example: 'Dr. Carlos'
+                                apellido:
+                                    type: string
+                                    example: 'García'
+                descripcion:
+                    type: string
+                    description: Descripción del pago
+                    example: 'Pago de consulta cardiológica'
+                referencia:
+                    type: string
+                    description: Número de referencia o transacción
+                    example: 'MP123456789'
+                fechaPago:
+                    type: string
+                    format: date-time
+                    description: Fecha y hora del pago
+                    example: '2024-01-15T10:30:00.000Z'
+                fechaActualizacion:
+                    type: string
+                    format: date-time
+                    description: Fecha de última actualización
+                    example: '2024-01-15T10:30:00.000Z'
+                observaciones:
+                    type: string
+                    description: Observaciones adicionales
+                    example: 'Pago verificado y aprobado'
+
+        PagoRequest:
+            type: object
+            required:
+                - monto
+                - metodoPago
+                - turno
+            properties:
+                monto:
+                    type: number
+                    minimum: 0
+                    description: Monto del pago en pesos argentinos
+                    example: 5000
+                metodoPago:
+                    type: string
+                    enum: [mercadopago, efectivo, transferencia]
+                    description: Método de pago utilizado
+                    example: 'mercadopago'
+                turno:
+                    type: string
+                    pattern: '^[0-9a-fA-F]{24}$'
+                    description: ID del turno al que corresponde el pago
+                    example: '60d5ec49eb3e4f2b8c8e9f1c'
+                descripcion:
+                    type: string
+                    description: Descripción adicional del pago (opcional)
+                    example: 'Pago de consulta cardiológica'
+                referencia:
+                    type: string
+                    description: Número de referencia o transacción (opcional)
+                    example: 'MP123456789'

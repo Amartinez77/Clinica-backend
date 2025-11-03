@@ -1,0 +1,212 @@
+paths:
+    /api/archivos/{idTurno}:
+        post:
+            tags:
+                - Archivos
+            summary: Subir archivo a un turno
+            description: Permite subir un archivo médico o de pago asociado a un turno específico
+            parameters:
+                - in: path
+                  name: idTurno
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID del turno al que se asociará el archivo
+                  example: '60d5ec49eb3e4f2b8c8e9f1c'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - tipo
+                                - url
+                            properties:
+                                tipo:
+                                    type: string
+                                    enum: [medico, pago]
+                                    description: Tipo de archivo a subir
+                                    example: 'medico'
+                                url:
+                                    type: string
+                                    format: uri
+                                    description: URL del archivo subido
+                                    example: 'https://storage.example.com/archivos/archivo123.pdf'
+                                nombre:
+                                    type: string
+                                    description: Nombre descriptivo del archivo (opcional)
+                                    example: 'Resultados de laboratorio'
+                                descripcion:
+                                    type: string
+                                    description: Descripción del contenido del archivo (opcional)
+                                    example: 'Análisis de sangre completo del paciente'
+            responses:
+                '201':
+                    description: Archivo subido exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Archivo subido correctamente'
+                                    archivo:
+                                        $ref: '#/components/schemas/ArchivoResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    errors:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                msg:
+                                                    type: string
+                                                    example: "El tipo de archivo debe ser 'medico' o 'pago'"
+                                                param:
+                                                    type: string
+                                                    example: 'tipo'
+                '404':
+                    description: Turno no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Turno no encontrado'
+
+    /api/archivos/{idArchivo}:
+        delete:
+            tags:
+                - Archivos
+            summary: Eliminar archivo
+            description: Permite eliminar un archivo específico del sistema
+            parameters:
+                - in: path
+                  name: idArchivo
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del archivo a eliminar
+                  example: '60d5ec49eb3e4f2b8c8e9f1d'
+            responses:
+                '200':
+                    description: Archivo eliminado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Archivo eliminado correctamente'
+                '400':
+                    description: ID de archivo inválido
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'El ID del archivo debe ser un ObjectId válido'
+                '404':
+                    description: Archivo no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Archivo no encontrado'
+                '403':
+                    description: Sin permisos para eliminar el archivo
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No tienes permisos para eliminar este archivo'
+
+components:
+    schemas:
+        ArchivoResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del archivo
+                    example: '60d5ec49eb3e4f2b8c8e9f1d'
+                turno:
+                    type: string
+                    description: ID del turno asociado
+                    example: '60d5ec49eb3e4f2b8c8e9f1c'
+                tipo:
+                    type: string
+                    enum: [medico, pago]
+                    description: Tipo de archivo
+                    example: 'medico'
+                url:
+                    type: string
+                    format: uri
+                    description: URL del archivo
+                    example: 'https://storage.example.com/archivos/archivo123.pdf'
+                nombre:
+                    type: string
+                    description: Nombre descriptivo del archivo
+                    example: 'Resultados de laboratorio'
+                descripcion:
+                    type: string
+                    description: Descripción del archivo
+                    example: 'Análisis de sangre completo del paciente'
+                fechaSubida:
+                    type: string
+                    format: date-time
+                    description: Fecha y hora de subida del archivo
+                    example: '2024-01-15T10:30:00.000Z'
+                tamaño:
+                    type: number
+                    description: Tamaño del archivo en bytes
+                    example: 2048576
+                formato:
+                    type: string
+                    description: Formato/extensión del archivo
+                    example: 'pdf'
+
+        ArchivoRequest:
+            type: object
+            required:
+                - tipo
+                - url
+            properties:
+                tipo:
+                    type: string
+                    enum: [medico, pago]
+                    description: Tipo de archivo a subir
+                    example: 'medico'
+                url:
+                    type: string
+                    format: uri
+                    description: URL del archivo subido
+                    example: 'https://storage.example.com/archivos/archivo123.pdf'
+                nombre:
+                    type: string
+                    description: Nombre descriptivo del archivo (opcional)
+                    example: 'Resultados de laboratorio'
+                descripcion:
+                    type: string
+                    description: Descripción del contenido del archivo (opcional)
+                    example: 'Análisis de sangre completo del paciente'

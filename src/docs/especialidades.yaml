@@ -1,0 +1,371 @@
+paths:
+    /api/especialidades:
+        post:
+            tags:
+                - Especialidades
+            summary: Crear una nueva especialidad
+            description: Permite crear una nueva especialidad médica (solo administradores)
+            security:
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - nombre
+                            properties:
+                                nombre:
+                                    type: string
+                                    description: Nombre de la especialidad médica
+                                    example: 'Cardiología'
+                                descripcion:
+                                    type: string
+                                    description: Descripción de la especialidad (opcional)
+                                    example: 'Especialidad médica dedicada al diagnóstico y tratamiento de enfermedades del corazón'
+            responses:
+                '201':
+                    description: Especialidad creada exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Especialidad creada correctamente'
+                                    especialidad:
+                                        $ref: '#/components/schemas/EspecialidadResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    errors:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                msg:
+                                                    type: string
+                                                    example: 'El nombre es obligatorio'
+                                                param:
+                                                    type: string
+                                                    example: 'nombre'
+                '401':
+                    description: No autorizado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token no válido'
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No tienes permisos para realizar esta acción'
+                '409':
+                    description: La especialidad ya existe
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Ya existe una especialidad con ese nombre'
+
+        get:
+            tags:
+                - Especialidades
+            summary: Obtener todas las especialidades
+            description: Obtiene la lista de todas las especialidades médicas disponibles
+            responses:
+                '200':
+                    description: Lista de especialidades obtenida exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EspecialidadResponse'
+                '500':
+                    description: Error interno del servidor
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Error interno del servidor'
+
+    /api/especialidades/{id}:
+        get:
+            tags:
+                - Especialidades
+            summary: Obtener especialidad por ID
+            description: Obtiene la información de una especialidad específica por su ID
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único de la especialidad en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Especialidad encontrada
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/EspecialidadResponse'
+                '400':
+                    description: ID inválido
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'ID inválido'
+                '404':
+                    description: Especialidad no encontrada
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Especialidad no encontrada'
+
+        put:
+            tags:
+                - Especialidades
+            summary: Actualizar especialidad
+            description: Permite actualizar la información de una especialidad (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único de la especialidad en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                nombre:
+                                    type: string
+                                    description: Nuevo nombre de la especialidad
+                                    example: 'Cardiología Pediátrica'
+                                descripcion:
+                                    type: string
+                                    description: Nueva descripción de la especialidad
+                                    example: 'Especialidad médica dedicada al diagnóstico y tratamiento de enfermedades cardíacas en niños'
+            responses:
+                '200':
+                    description: Especialidad actualizada exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Especialidad actualizada correctamente'
+                                    especialidad:
+                                        $ref: '#/components/schemas/EspecialidadResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Datos inválidos'
+                '401':
+                    description: No autorizado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token no válido'
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No tienes permisos para realizar esta acción'
+                '404':
+                    description: Especialidad no encontrada
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Especialidad no encontrada'
+
+        delete:
+            tags:
+                - Especialidades
+            summary: Eliminar especialidad
+            description: Permite eliminar una especialidad del sistema (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único de la especialidad en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Especialidad eliminada exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Especialidad eliminada correctamente'
+                '400':
+                    description: ID inválido
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'ID inválido'
+                '401':
+                    description: No autorizado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Token no válido'
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No tienes permisos para realizar esta acción'
+                '404':
+                    description: Especialidad no encontrada
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Especialidad no encontrada'
+                '409':
+                    description: No se puede eliminar (especialidad en uso)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'No se puede eliminar la especialidad porque está siendo utilizada por doctores'
+
+components:
+    schemas:
+        EspecialidadResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único de la especialidad
+                    example: '60d5ec49eb3e4f2b8c8e9f1a'
+                nombre:
+                    type: string
+                    description: Nombre de la especialidad médica
+                    example: 'Cardiología'
+                descripcion:
+                    type: string
+                    description: Descripción de la especialidad
+                    example: 'Especialidad médica dedicada al diagnóstico y tratamiento de enfermedades del corazón'
+                fechaCreacion:
+                    type: string
+                    format: date-time
+                    description: Fecha de creación de la especialidad
+                    example: '2024-01-15T10:30:00.000Z'
+                fechaActualizacion:
+                    type: string
+                    format: date-time
+                    description: Fecha de última actualización
+                    example: '2024-01-15T10:30:00.000Z'
+                activa:
+                    type: boolean
+                    description: Estado de la especialidad
+                    example: true
+                cantidadDoctores:
+                    type: number
+                    description: Cantidad de doctores asociados a esta especialidad
+                    example: 5
+
+        EspecialidadRequest:
+            type: object
+            required:
+                - nombre
+            properties:
+                nombre:
+                    type: string
+                    minLength: 2
+                    maxLength: 100
+                    description: Nombre de la especialidad médica
+                    example: 'Cardiología'
+                descripcion:
+                    type: string
+                    maxLength: 500
+                    description: Descripción opcional de la especialidad
+                    example: 'Especialidad médica dedicada al diagnóstico y tratamiento de enfermedades del corazón'

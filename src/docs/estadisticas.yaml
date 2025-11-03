@@ -1,0 +1,497 @@
+paths:
+    /api/estadisticas/resumen:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener resumen de estadísticas
+            description: Obtiene un resumen general de las estadísticas del consultorio
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Resumen de estadísticas obtenido exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResumenEstadisticas'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/turnos-por-especialidad:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener turnos por especialidad
+            description: Obtiene la cantidad de turnos agrupados por especialidad médica
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: fechaInicio
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de inicio para filtrar (opcional)
+                  example: '2024-01-01'
+                - in: query
+                  name: fechaFin
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de fin para filtrar (opcional)
+                  example: '2024-12-31'
+            responses:
+                '200':
+                    description: Estadísticas por especialidad obtenidas exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaEspecialidad'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/horarios-mas-solicitados:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener horarios más solicitados
+            description: Obtiene los horarios de consulta más solicitados por los pacientes
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Horarios más solicitados obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaHorario'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/turnos-por-doctor:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener turnos por doctor
+            description: Obtiene la cantidad de turnos agrupados por doctor
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: fechaInicio
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de inicio para filtrar (opcional)
+                  example: '2024-01-01'
+                - in: query
+                  name: fechaFin
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de fin para filtrar (opcional)
+                  example: '2024-12-31'
+            responses:
+                '200':
+                    description: Estadísticas por doctor obtenidas exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaDoctor'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/turnos-por-mes:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener turnos por mes
+            description: Obtiene la evolución mensual de la cantidad de turnos
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: año
+                  schema:
+                      type: number
+                  description: Año para filtrar (opcional)
+                  example: 2024
+            responses:
+                '200':
+                    description: Estadísticas mensuales obtenidas exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaMensual'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/estados-turnos:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener estadísticas de estados de turnos
+            description: Obtiene la distribución de turnos por estado (pendiente, confirmado, realizado, cancelado)
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Estadísticas de estados obtenidas exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaEstado'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/ingresos-por-especialidad:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener ingresos por especialidad
+            description: Obtiene los ingresos generados agrupados por especialidad médica
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: fechaInicio
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de inicio para filtrar (opcional)
+                  example: '2024-01-01'
+                - in: query
+                  name: fechaFin
+                  schema:
+                      type: string
+                      format: date
+                  description: Fecha de fin para filtrar (opcional)
+                  example: '2024-12-31'
+            responses:
+                '200':
+                    description: Ingresos por especialidad obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/IngresoEspecialidad'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/turnos-por-dia-semana:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener turnos por día de la semana
+            description: Obtiene la distribución de turnos por día de la semana
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Estadísticas por día de semana obtenidas exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/EstadisticaDiaSemana'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/ingresos-por-mes:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener ingresos por mes
+            description: Obtiene la evolución mensual de los ingresos del consultorio
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: año
+                  schema:
+                      type: number
+                  description: Año para filtrar (opcional)
+                  example: 2024
+            responses:
+                '200':
+                    description: Ingresos mensuales obtenidos exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/IngresoMensual'
+                '401':
+                    description: No autorizado
+
+    /api/estadisticas/top-doctores-solicitados:
+        get:
+            tags:
+                - Estadísticas
+            summary: Obtener top doctores más solicitados
+            description: Obtiene el ranking de doctores más solicitados por los pacientes
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: query
+                  name: limite
+                  schema:
+                      type: number
+                      default: 10
+                  description: Número máximo de doctores a retornar
+                  example: 5
+            responses:
+                '200':
+                    description: Top doctores obtenido exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TopDoctor'
+                '401':
+                    description: No autorizado
+
+components:
+    schemas:
+        ResumenEstadisticas:
+            type: object
+            properties:
+                totalTurnos:
+                    type: number
+                    description: Total de turnos en el sistema
+                    example: 1250
+                turnosPendientes:
+                    type: number
+                    description: Turnos pendientes de confirmación
+                    example: 45
+                turnosConfirmados:
+                    type: number
+                    description: Turnos confirmados
+                    example: 78
+                turnosRealizados:
+                    type: number
+                    description: Turnos ya realizados
+                    example: 980
+                turnosCancelados:
+                    type: number
+                    description: Turnos cancelados
+                    example: 147
+                totalDoctores:
+                    type: number
+                    description: Total de doctores activos
+                    example: 15
+                totalPacientes:
+                    type: number
+                    description: Total de pacientes registrados
+                    example: 486
+                ingresosTotales:
+                    type: number
+                    description: Ingresos totales generados
+                    example: 4875000
+                ingresosMesActual:
+                    type: number
+                    description: Ingresos del mes actual
+                    example: 425000
+
+        EstadisticaEspecialidad:
+            type: object
+            properties:
+                especialidad:
+                    type: string
+                    description: Nombre de la especialidad
+                    example: 'Cardiología'
+                totalTurnos:
+                    type: number
+                    description: Total de turnos de esta especialidad
+                    example: 245
+                porcentaje:
+                    type: number
+                    description: Porcentaje del total
+                    example: 19.6
+
+        EstadisticaHorario:
+            type: object
+            properties:
+                hora:
+                    type: string
+                    description: Horario de consulta
+                    example: '10:00'
+                cantidad:
+                    type: number
+                    description: Cantidad de turnos en este horario
+                    example: 89
+                porcentaje:
+                    type: number
+                    description: Porcentaje del total
+                    example: 15.3
+
+        EstadisticaDoctor:
+            type: object
+            properties:
+                doctor:
+                    type: object
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1b'
+                        nombre:
+                            type: string
+                            example: 'Carlos'
+                        apellido:
+                            type: string
+                            example: 'García'
+                        especialidad:
+                            type: string
+                            example: 'Cardiología'
+                totalTurnos:
+                    type: number
+                    description: Total de turnos del doctor
+                    example: 156
+                turnosRealizados:
+                    type: number
+                    description: Turnos realizados
+                    example: 134
+                ingresoGenerado:
+                    type: number
+                    description: Ingresos generados por el doctor
+                    example: 670000
+
+        EstadisticaMensual:
+            type: object
+            properties:
+                mes:
+                    type: number
+                    description: Número del mes (1-12)
+                    example: 3
+                año:
+                    type: number
+                    description: Año
+                    example: 2024
+                nombreMes:
+                    type: string
+                    description: Nombre del mes
+                    example: 'Marzo'
+                totalTurnos:
+                    type: number
+                    description: Total de turnos en el mes
+                    example: 98
+
+        EstadisticaEstado:
+            type: object
+            properties:
+                estado:
+                    type: string
+                    enum: [pendiente, confirmado, realizado, cancelado]
+                    description: Estado del turno
+                    example: 'realizado'
+                cantidad:
+                    type: number
+                    description: Cantidad de turnos en este estado
+                    example: 980
+                porcentaje:
+                    type: number
+                    description: Porcentaje del total
+                    example: 78.4
+
+        IngresoEspecialidad:
+            type: object
+            properties:
+                especialidad:
+                    type: string
+                    description: Nombre de la especialidad
+                    example: 'Cardiología'
+                ingresoTotal:
+                    type: number
+                    description: Total de ingresos de la especialidad
+                    example: 1250000
+                cantidadTurnos:
+                    type: number
+                    description: Cantidad de turnos pagados
+                    example: 250
+                ingresoPromedio:
+                    type: number
+                    description: Ingreso promedio por turno
+                    example: 5000
+
+        EstadisticaDiaSemana:
+            type: object
+            properties:
+                dia:
+                    type: number
+                    description: Número del día (0=Domingo, 1=Lunes, etc.)
+                    example: 1
+                nombreDia:
+                    type: string
+                    description: Nombre del día
+                    example: 'Lunes'
+                totalTurnos:
+                    type: number
+                    description: Total de turnos en este día
+                    example: 178
+
+        IngresoMensual:
+            type: object
+            properties:
+                mes:
+                    type: number
+                    description: Número del mes (1-12)
+                    example: 3
+                año:
+                    type: number
+                    description: Año
+                    example: 2024
+                nombreMes:
+                    type: string
+                    description: Nombre del mes
+                    example: 'Marzo'
+                ingresoTotal:
+                    type: number
+                    description: Total de ingresos en el mes
+                    example: 425000
+                cantidadTurnos:
+                    type: number
+                    description: Cantidad de turnos pagados en el mes
+                    example: 85
+
+        TopDoctor:
+            type: object
+            properties:
+                doctor:
+                    type: object
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1b'
+                        nombre:
+                            type: string
+                            example: 'Carlos'
+                        apellido:
+                            type: string
+                            example: 'García'
+                        especialidad:
+                            type: string
+                            example: 'Cardiología'
+                        matricula:
+                            type: string
+                            example: 'MP123456'
+                totalTurnos:
+                    type: number
+                    description: Total de turnos solicitados
+                    example: 156
+                posicion:
+                    type: number
+                    description: Posición en el ranking
+                    example: 1

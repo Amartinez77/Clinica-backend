@@ -1,0 +1,329 @@
+paths:
+    /api/doctores:
+        post:
+            tags:
+                - Doctores
+            summary: Registrar un nuevo doctor
+            description: Permite registrar un nuevo doctor en el sistema (solo administradores)
+            security:
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - dni
+                                - email
+                                - password
+                                - nombre
+                                - apellido
+                                - matricula
+                                - especialidad
+                                - precioConsulta
+                            properties:
+                                dni:
+                                    type: string
+                                    description: DNI del doctor
+                                    example: '12345678'
+                                email:
+                                    type: string
+                                    format: email
+                                    description: Email del doctor
+                                    example: 'doctor@email.com'
+                                password:
+                                    type: string
+                                    description: Contraseña del doctor
+                                    example: 'miPassword123'
+                                nombre:
+                                    type: string
+                                    description: Nombre del doctor
+                                    example: 'Carlos'
+                                apellido:
+                                    type: string
+                                    description: Apellido del doctor
+                                    example: 'García'
+                                matricula:
+                                    type: string
+                                    description: Matrícula médica del doctor
+                                    example: 'MP123456'
+                                especialidad:
+                                    type: string
+                                    description: ID de la especialidad del doctor
+                                    example: '60d5ec49eb3e4f2b8c8e9f1a'
+                                precioConsulta:
+                                    type: number
+                                    description: Precio de la consulta
+                                    example: 5000
+                                telefono:
+                                    type: string
+                                    description: Teléfono del doctor (opcional)
+                                    example: '1234567890'
+            responses:
+                '201':
+                    description: Doctor registrado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Doctor registrado correctamente'
+                                    doctor:
+                                        $ref: '#/components/schemas/DoctorResponse'
+                '400':
+                    description: Error de validación
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+
+        get:
+            tags:
+                - Doctores
+            summary: Obtener todos los doctores
+            description: Obtiene la lista de todos los doctores activos
+            responses:
+                '200':
+                    description: Lista de doctores obtenida exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/DoctorResponse'
+
+    /api/doctores/{id}:
+        get:
+            tags:
+                - Doctores
+            summary: Obtener doctor por ID
+            description: Obtiene la información de un doctor específico por su ID
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del doctor en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Doctor encontrado
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DoctorResponse'
+                '400':
+                    description: ID inválido
+                '404':
+                    description: Doctor no encontrado
+
+        put:
+            tags:
+                - Doctores
+            summary: Actualizar información del doctor
+            description: Permite actualizar email, teléfono y precio de consulta (admin o el mismo doctor)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del doctor en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                    description: Nuevo email del doctor (opcional)
+                                    example: 'nuevo.email@ejemplo.com'
+                                telefono:
+                                    type: string
+                                    description: Nuevo teléfono del doctor (opcional)
+                                    example: '1234567890'
+                                precioConsulta:
+                                    type: number
+                                    description: Nuevo precio de consulta (opcional)
+                                    example: 6000
+            responses:
+                '200':
+                    description: Doctor actualizado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Doctor actualizado correctamente'
+                                    doctor:
+                                        $ref: '#/components/schemas/DoctorResponse'
+                '400':
+                    description: Error de validación
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes
+                '404':
+                    description: Doctor no encontrado
+
+        delete:
+            tags:
+                - Doctores
+            summary: Eliminar doctor (borrado lógico)
+            description: Realiza un borrado lógico del doctor (solo administradores)
+            security:
+                - bearerAuth: []
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del doctor en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Doctor eliminado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Doctor eliminado correctamente'
+                '400':
+                    description: ID inválido
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+                '404':
+                    description: Doctor no encontrado
+
+    /api/doctores/name:
+        get:
+            tags:
+                - Doctores
+            summary: Buscar doctores por nombre
+            description: Busca doctores que coincidan con el nombre proporcionado
+            parameters:
+                - in: query
+                  name: nombre
+                  schema:
+                      type: string
+                  description: Nombre a buscar
+                  example: 'Carlos'
+            responses:
+                '200':
+                    description: Doctores encontrados
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/DoctorResponse'
+
+    /api/doctores/especialidad/{idEspecialidad}:
+        get:
+            tags:
+                - Doctores
+            summary: Obtener doctores por especialidad
+            description: Obtiene todos los doctores de una especialidad específica
+            parameters:
+                - in: path
+                  name: idEspecialidad
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID de la especialidad
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Doctores encontrados
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/DoctorResponse'
+                '400':
+                    description: ID de especialidad inválido
+
+components:
+    schemas:
+        DoctorResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del doctor
+                    example: '60d5ec49eb3e4f2b8c8e9f1a'
+                dni:
+                    type: string
+                    description: DNI del doctor
+                    example: '12345678'
+                nombre:
+                    type: string
+                    description: Nombre del doctor
+                    example: 'Carlos'
+                apellido:
+                    type: string
+                    description: Apellido del doctor
+                    example: 'García'
+                email:
+                    type: string
+                    format: email
+                    description: Email del doctor
+                    example: 'carlos.garcia@email.com'
+                telefono:
+                    type: string
+                    description: Teléfono del doctor
+                    example: '1234567890'
+                matricula:
+                    type: string
+                    description: Matrícula médica
+                    example: 'MP123456'
+                especialidad:
+                    type: object
+                    description: Especialidad del doctor
+                    properties:
+                        _id:
+                            type: string
+                            example: '60d5ec49eb3e4f2b8c8e9f1a'
+                        nombre:
+                            type: string
+                            example: 'Cardiología'
+                precioConsulta:
+                    type: number
+                    description: Precio de la consulta
+                    example: 5000
+                fechaRegistro:
+                    type: string
+                    format: date-time
+                    description: Fecha de registro del doctor
+                    example: '2024-01-15T10:30:00.000Z'
+                rol:
+                    type: string
+                    description: Rol del usuario
+                    example: 'Doctor'
+                activo:
+                    type: boolean
+                    description: Estado del doctor
+                    example: true

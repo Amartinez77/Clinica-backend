@@ -1,0 +1,295 @@
+paths:
+    /api/pacientes/registro:
+        post:
+            tags:
+                - Pacientes
+            summary: Registrar un nuevo paciente
+            description: Permite registrar un nuevo paciente en el sistema
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - dni
+                                - password
+                                - nombre
+                                - apellido
+                            properties:
+                                dni:
+                                    type: string
+                                    minLength: 7
+                                    maxLength: 8
+                                    description: DNI del paciente (7-8 caracteres)
+                                    example: '12345678'
+                                password:
+                                    type: string
+                                    minLength: 6
+                                    description: Contraseña del paciente (mínimo 6 caracteres)
+                                    example: 'miPassword123'
+                                nombre:
+                                    type: string
+                                    description: Nombre del paciente
+                                    example: 'Juan'
+                                apellido:
+                                    type: string
+                                    description: Apellido del paciente
+                                    example: 'Pérez'
+                                email:
+                                    type: string
+                                    format: email
+                                    description: Email del paciente (opcional)
+                                    example: 'juan.perez@email.com'
+            responses:
+                '201':
+                    description: Paciente registrado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Paciente registrado correctamente'
+                                    paciente:
+                                        $ref: '#/components/schemas/PacienteResponse'
+                '400':
+                    description: Error de validación
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    errors:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                msg:
+                                                    type: string
+                                                    example: 'El DNI es obligatorio'
+                                                param:
+                                                    type: string
+                                                    example: 'dni'
+                '409':
+                    description: El paciente ya existe
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Ya existe un paciente con ese DNI'
+
+    /api/pacientes:
+        get:
+            tags:
+                - Pacientes
+            summary: Obtener todos los pacientes
+            description: Obtiene la lista de todos los pacientes (solo para administradores)
+            security:
+                - bearerAuth: []
+            responses:
+                '200':
+                    description: Lista de pacientes obtenida exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/PacienteResponse'
+                '401':
+                    description: No autorizado
+                '403':
+                    description: Permisos insuficientes (solo administradores)
+
+    /api/pacientes/dni/{dni}:
+        get:
+            tags:
+                - Pacientes
+            summary: Obtener paciente por DNI
+            description: Obtiene la información de un paciente específico por su DNI
+            parameters:
+                - in: path
+                  name: dni
+                  required: true
+                  schema:
+                      type: string
+                      minLength: 7
+                      maxLength: 8
+                  description: DNI del paciente
+                  example: '12345678'
+            responses:
+                '200':
+                    description: Paciente encontrado
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PacienteResponse'
+                '404':
+                    description: Paciente no encontrado
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: 'Paciente no encontrado'
+
+    /api/pacientes/{idPaciente}:
+        get:
+            tags:
+                - Pacientes
+            summary: Obtener paciente por ID
+            description: Obtiene la información de un paciente específico por su ID
+            parameters:
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del paciente en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Paciente encontrado
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PacienteResponse'
+                '400':
+                    description: ID inválido
+                '404':
+                    description: Paciente no encontrado
+
+        put:
+            tags:
+                - Pacientes
+            summary: Actualizar información del paciente
+            description: Permite actualizar el email y teléfono de un paciente
+            parameters:
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del paciente en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                    description: Nuevo email del paciente (opcional)
+                                    example: 'nuevo.email@ejemplo.com'
+                                telefono:
+                                    type: string
+                                    pattern: '^[0-9]+$'
+                                    description: Nuevo teléfono del paciente
+                                    example: '1234567890'
+            responses:
+                '200':
+                    description: Paciente actualizado exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Paciente actualizado correctamente'
+                                    paciente:
+                                        $ref: '#/components/schemas/PacienteResponse'
+                '400':
+                    description: Error de validación
+                '404':
+                    description: Paciente no encontrado
+
+    /api/pacientes/desvincular/{idPaciente}:
+        put:
+            tags:
+                - Pacientes
+            summary: Desvincular cuenta de Google
+            description: Desvincula la cuenta de Google asociada al paciente
+            parameters:
+                - in: path
+                  name: idPaciente
+                  required: true
+                  schema:
+                      type: string
+                      pattern: '^[0-9a-fA-F]{24}$'
+                  description: ID único del paciente en MongoDB
+                  example: '60d5ec49eb3e4f2b8c8e9f1a'
+            responses:
+                '200':
+                    description: Cuenta de Google desvinculada exitosamente
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    mensaje:
+                                        type: string
+                                        example: 'Cuenta de Google desvinculada correctamente'
+                '404':
+                    description: Paciente no encontrado
+
+components:
+    schemas:
+        PacienteResponse:
+            type: object
+            properties:
+                _id:
+                    type: string
+                    description: ID único del paciente
+                    example: '60d5ec49eb3e4f2b8c8e9f1a'
+                dni:
+                    type: string
+                    description: DNI del paciente
+                    example: '12345678'
+                nombre:
+                    type: string
+                    description: Nombre del paciente
+                    example: 'Juan'
+                apellido:
+                    type: string
+                    description: Apellido del paciente
+                    example: 'Pérez'
+                email:
+                    type: string
+                    format: email
+                    description: Email del paciente
+                    example: 'juan.perez@email.com'
+                telefono:
+                    type: string
+                    description: Teléfono del paciente
+                    example: '1234567890'
+                fechaRegistro:
+                    type: string
+                    format: date-time
+                    description: Fecha de registro del paciente
+                    example: '2024-01-15T10:30:00.000Z'
+                rol:
+                    type: string
+                    description: Rol del usuario
+                    example: 'paciente'
+                activo:
+                    type: boolean
+                    description: Estado del paciente
+                    example: true
+
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
