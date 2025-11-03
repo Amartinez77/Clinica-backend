@@ -1,33 +1,32 @@
-import Turno from '../models/Turno.js'
-import Paciente from '../models/Paciente.js'
-import Doctor from '../models/Doctor.js'
+import { getModels } from '../config/sequelize.js'
+import { Op } from 'sequelize'
 
 const createTurno = async (req, res) => {
 	try {
 		const { idPaciente, idDoctor } = req.params
 		const { fecha, hora, observaciones } = req.body
+		const { Paciente, Doctor, Turno } = getModels()
 		// Verificar si el paciente existe
-		const paciente = await Paciente.findById(idPaciente)
+		const paciente = await Paciente.findByPk(idPaciente)
 		if (!paciente) {
 			return res.status(404).json({ error: 'Paciente no encontrado' })
 		}
 
 		// Verificar si el doctor existe
-		const doctor = await Doctor.findById(idDoctor)
+		const doctor = await Doctor.findByPk(idDoctor)
 		if (!doctor) {
 			return res.status(404).json({ error: 'Doctor no encontrado' })
 		}
 
 		// Crear el turno
-		const turno = new Turno({
-			paciente: idPaciente,
-			doctor: idDoctor,
+		const turno = await Turno.create({
+			pacienteId: idPaciente,
+			doctorId: idDoctor,
 			fecha,
 			hora,
 			observaciones,
 		})
 
-		await turno.save()
 		res.status(201).json(turno)
 	} catch (error) {
 		console.error(error)
@@ -37,14 +36,8 @@ const createTurno = async (req, res) => {
 const getTurnosByPaciente = async (req, res) => {
 	try {
 		const { idPaciente } = req.params
-		const turnos = await Turno.find({ paciente: idPaciente })
-			.populate({
-				path: 'doctor',
-				populate: {
-					path: 'especialidad',
-				},
-			})
-			.populate('paciente')
+		const { Turno, Doctor, Paciente, Especialidad } = getModels()
+		const turnos = await Turno.findAll({ where: { pacienteId: idPaciente }, include: [{ model: Doctor, include: [{ model: Especialidad }] }, { model: Paciente }] })
 		turnos.reverse()
 		res.json(turnos)
 	} catch (error) {
@@ -55,15 +48,8 @@ const getTurnosByPaciente = async (req, res) => {
 const getTurnosByDoctor = async (req, res) => {
 	try {
 		const { idDoctor } = req.params
-		const turnos = await Turno.find({ doctor: idDoctor })
-			.populate('paciente')
-			.populate({
-				path: 'doctor',
-				populate: {
-					path: 'especialidad',
-				},
-			})
-			.populate('archivos')
+		const { Turno, Paciente, Doctor, Especialidad, Archivo } = getModels()
+		const turnos = await Turno.findAll({ where: { doctorId: idDoctor }, include: [{ model: Paciente }, { model: Doctor, include: [{ model: Especialidad }] }, { model: Archivo }] })
 		res.json(turnos)
 	} catch (error) {
 		console.error(error)
@@ -73,7 +59,8 @@ const getTurnosByDoctor = async (req, res) => {
 const getTurnoById = async (req, res) => {
 	try {
 		const { idTurno } = req.params
-		const turno = await Turno.findById(idTurno).populate('paciente').populate('doctor').populate('archivos')
+		const { Turno, Paciente, Doctor, Archivo } = getModels()
+		const turno = await Turno.findByPk(idTurno, { include: [{ model: Paciente }, { model: Doctor }, { model: Archivo }] })
 		if (!turno) {
 			return res.status(404).json({ error: 'Turno no encontrado' })
 		}
@@ -86,13 +73,14 @@ const getTurnoById = async (req, res) => {
 const cancelarTurno = async (req, res) => {
 	try {
 		const { idTurno } = req.params
-		const turno = await Turno.findById(idTurno)
+		const { Turno } = getModels()
+		const turno = await Turno.findByPk(idTurno)
 		if (!turno) {
 			return res.status(404).json({ error: 'Turno no encontrado' })
 		}
 
 		// Verificar si el turno ya está cancelado
-		if (turno.cancelado) {
+		if (turno.estado === 'cancelado') {
 			return res.status(400).json({ error: 'El turno ya está cancelado' })
 		} else {
 			// Marcar el turno como cancelado
@@ -109,8 +97,8 @@ const updateTurno = async (req, res) => {
 	try {
 		const { idTurno } = req.params
 		const { observaciones } = req.body
-
-		const turno = await Turno.findById(idTurno)
+		const { Turno } = getModels()
+		const turno = await Turno.findByPk(idTurno)
 		if (!turno) {
 			return res.status(404).json({ error: 'Turno no encontrado' })
 		}
@@ -128,7 +116,8 @@ const updateTurno = async (req, res) => {
 const successTurno = async (req, res) => {
 	try {
 		const { idTurno } = req.params
-		const turno = await Turno.findById(idTurno)
+		const { Turno } = getModels()
+		const turno = await Turno.findByPk(idTurno)
 		if (!turno) {
 			return res.status(404).json({ error: 'Turno no encontrado' })
 		}
@@ -147,13 +136,8 @@ const getTurnosByDoctorAndFecha = async (req, res) => {
 	try {
 		const { idDoctor } = req.params
 		const { fecha } = req.query
-		const turnos = await Turno.find({
-			doctor: idDoctor,
-			fecha,
-			estado: {
-				$in: ['pendiente', 'confirmado'],
-			},
-		})
+		const { Turno } = getModels()
+		const turnos = await Turno.findAll({ where: { doctorId: idDoctor, fecha, estado: { [Op.in]: ['pendiente', 'confirmado'] } } })
 		res.json(turnos)
 	} catch (error) {
 		console.error(error)
@@ -163,7 +147,8 @@ const getTurnosByDoctorAndFecha = async (req, res) => {
 
 const getAllTurnos = async (req, res) => {
 	try {
-		const turnos = await Turno.find().populate('paciente').populate('doctor')
+		const { Turno, Paciente, Doctor } = getModels()
+		const turnos = await Turno.findAll({ include: [{ model: Paciente }, { model: Doctor }] })
 		res.json(turnos)
 	} catch (error) {
 		console.error(error)
@@ -180,9 +165,8 @@ const getTurnosByFecha = async (req, res) => {
 		}
 		console.log('Fecha recibida:', fecha, typeof fecha) // Para depuración
 		// Busca directamente por el campo fecha (asegúrate que existe en tu schema)
-		const turnos = await Turno.find({ fecha: fecha.toString() })
-			.populate('paciente', '-password')
-			.populate('doctor', '-password')
+		const { Turno, Paciente, Doctor } = getModels()
+		const turnos = await Turno.findAll({ where: { fecha: fecha.toString() }, include: [{ model: Paciente, attributes: { exclude: ['password'] } }, { model: Doctor, attributes: { exclude: ['password'] } }] })
 
 		res.json(turnos)
 	} catch (error) {
@@ -193,11 +177,8 @@ const getTurnosByFecha = async (req, res) => {
 
 const getTurnosPendientes = async (req, res) => {
 	try {
-		const turnos = await Turno.find({ estado: 'pendiente' })
-			.populate('paciente')
-			.populate('doctor')
-			.populate('archivos')
-		
+		const { Turno, Paciente, Doctor, Archivo } = getModels()
+		const turnos = await Turno.findAll({ where: { estado: 'pendiente' }, include: [{ model: Paciente }, { model: Doctor }, { model: Archivo }] })
 		turnos.reverse()
 		res.json(turnos)
 	} catch (error) {
@@ -208,7 +189,8 @@ const getTurnosPendientes = async (req, res) => {
 const confirmarTurno = async (req, res) => {
 	try {
 		const { idTurno } = req.params
-		const turno = await Turno.findById(idTurno)
+		const { Turno } = getModels()
+		const turno = await Turno.findByPk(idTurno)
 		if (!turno) {
 			return res.status(404).json({ error: 'Turno no encontrado' })
 		}
@@ -223,23 +205,17 @@ const confirmarTurno = async (req, res) => {
 		res.status(500).json({ error: 'Error al confirmar el turno' })
 	}
 }
-const getTurnosByEstadoAndPacienteId = async (req,res) => {
-	
-		try {
-			const { idPaciente,estado } = req.params
-			const turnos = await Turno.find({ paciente: idPaciente, estado })
-				.populate('paciente')
-				.populate({
-				path: 'doctor',
-				populate: {
-					path: 'especialidad',
-				},
-			})
-			res.json(turnos)
-		} catch (error) {
-			console.error(error)
-			res.status(500).json({ error: `Error al obtener los turnos con estado ${estado}` })
-		}
+const getTurnosByEstadoAndPacienteId = async (req, res) => {
+
+	try {
+		const { idPaciente, estado } = req.params
+		const { Turno, Paciente, Doctor, Especialidad } = getModels()
+		const turnos = await Turno.findAll({ where: { pacienteId: idPaciente, estado }, include: [{ model: Paciente }, { model: Doctor, include: [{ model: Especialidad }] }] })
+		res.json(turnos)
+	} catch (error) {
+		console.error(error)
+		res.status(500).json({ error: `Error al obtener los turnos con estado ${estado}` })
+	}
 }
 export default {
 	createTurno,

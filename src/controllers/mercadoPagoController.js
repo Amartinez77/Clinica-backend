@@ -1,7 +1,5 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
-import Doctor from '../models/Doctor.js' // Importamos el modelo Doctor
-import Pago from '../models/Pago.js'
-import Turno from '../models/Turno.js' // Importamos el modelo Turno
+import { getModels } from '../config/sequelize.js'
 const client = new MercadoPagoConfig({
 	accessToken: process.env.MP_ACCESS_TOKEN, //acces token de maurisio
 })
@@ -11,8 +9,9 @@ const preferenceClient = new Preference(client)
 const createPreference = async (req, res) => {
 	try {
 		const { idDoctor, idTurno } = req.params // obtenemos el id del doctor desde los parametros de la ruta
-		const doctor = await Doctor.findById(idDoctor) // buscamos el doctor en la base de datos
-		const turno = await Turno.findById(idTurno) // buscamos el turno en la base de datos
+		const { Doctor, Turno } = getModels()
+		const doctor = await Doctor.findByPk(idDoctor) // buscamos el doctor en la base de datos
+		const turno = await Turno.findByPk(idTurno) // buscamos el turno en la base de datos
 		const preference = {
 			items: [
 				{
@@ -52,14 +51,15 @@ const recibirPago = async (req, res) => {
 		// 1. Obtener detalles del pago desde MercadoPago
 		const payment = await paymentClient.get({ id: paymentId })
 		const { status, id, external_reference, transaction_amount } = payment
+		const { Pago, Turno } = getModels()
 		if (status === 'approved') {
-			const turno = await Turno.findById(external_reference)
+			const turno = await Turno.findByPk(external_reference)
 
 			// 2. Guardar el pago en la base de datos
-			const nuevoPago = new Pago({
+			const nuevoPago = await Pago.create({
 				monto: transaction_amount,
 				metodoPago: 'mercadopago',
-				turno: turno._id, // id del turno
+				turnoId: turno ? turno.id : null,
 				estado: 'completado', // Estado del pago
 				paymentIdMp: id, // ID del pago en MercadoPago
 			})
@@ -73,13 +73,12 @@ const recibirPago = async (req, res) => {
 				console.error('❌ Turno no encontrado con ID:', external_reference)
 			}
 
-			await nuevoPago.save()
 			console.log('✅ Pago guardado:', nuevoPago)
 		} else if (status === 'rejected') {
 			//se elimina el turno
-			const turno = await Turno.findById(external_reference)
+			const turno = await Turno.findByPk(external_reference)
 			if (turno) {
-				Turno.findByIdAndDelete(external_reference)
+				await Turno.destroy({ where: { id: external_reference } })
 				console.log('❌ Turno eliminado:', turno)
 			}
 		}

@@ -7,7 +7,13 @@ import { exit } from 'node:process'
  */
 export const conexionDB = async () => {
 	try {
-		const connection = await mongoose.connect(process.env.DB_URL)
+		const dbUrl = process.env.DB_URL
+		if (!dbUrl) {
+			console.log(colors.yellow('DB_URL no definido — se omite la conexión a MongoDB.'))
+			return null
+		}
+
+		const connection = await mongoose.connect(dbUrl)
 		const url = `${connection.connection.host}:${connection.connection.port}`
 		console.log(colors.magenta.bold(`MongoDB se conectó: ${url}`))
 	} catch (error) {

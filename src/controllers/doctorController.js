@@ -1,7 +1,7 @@
 //controller para doctor
-import Doctor from '../models/Doctor.js'
-import Especialidad from '../models/Especialidad.js'
 import bcrypt from 'bcryptjs'
+import { getModels } from '../config/sequelize.js'
+import { Op } from 'sequelize'
 
 //registrar un nuevo doctor
 export const registrarDoctor = async (req, res) => {
@@ -9,21 +9,20 @@ export const registrarDoctor = async (req, res) => {
 		const { dni, email, password, nombre, apellido, matricula, especialidad, precioConsulta, telefono } = req.body
 
 		// Verificar si el doctor ya existe por email o DNI
-		const doctorExistente = await Doctor.findOne({
-			$or: [{ email }, { dni }],
-		})
+		const { Doctor, Especialidad } = getModels()
+		const doctorExistente = await Doctor.findOne({ where: { [Op.or]: [{ email }, { dni }] } })
 		if (doctorExistente) {
 			return res.status(400).json({ message: 'El doctor ya está registrado con ese email o DNI' })
 		}
 
 		// Verificar si la matrícula ya existe
-		const matriculaExistente = await Doctor.findOne({ matricula })
+		const matriculaExistente = await Doctor.findOne({ where: { matricula } })
 		if (matriculaExistente) {
 			return res.status(400).json({ message: 'La matrícula ya está registrada' })
 		}
 
 		// Verificar si la especialidad existe
-		const especialidadExistente = await Especialidad.findById(especialidad)
+		const especialidadExistente = await Especialidad.findByPk(especialidad)
 		if (!especialidadExistente) {
 			return res.status(400).json({ message: 'La especialidad no existe' })
 		}
@@ -33,23 +32,20 @@ export const registrarDoctor = async (req, res) => {
 		const passwordEncriptada = await bcrypt.hash(password, salt)
 
 		// Crear el nuevo doctor
-		const nuevoDoctor = new Doctor({
+		const nuevoDoctor = await Doctor.create({
 			dni,
 			email,
 			password: passwordEncriptada,
 			nombre,
 			apellido,
 			matricula,
-			especialidad, // se guarda la referencia al objectId de especialidad
+			especialidadId: especialidad,
 			precioConsulta,
 			telefono,
 			activo: true, // Establecer como activo por defecto
 		})
 
-		// Guardar el doctor en la base de datos
-		await nuevoDoctor.save()
-
-		res.status(201).json({ message: 'Doctor registrado exitosamente', doctorId: nuevoDoctor._id })
+		res.status(201).json({ message: 'Doctor registrado exitosamente', doctorId: nuevoDoctor.id })
 	} catch (error) {
 		console.error('Error al registrar doctor:', error.message)
 		if (error.name === 'ValidationError') {
@@ -68,7 +64,8 @@ export const getDoctores = async (req, res) => {
 	try {
 		// se usa .select('-password') para no enviar la contraseña al cliente
 		// se usa .populate('especialidad', 'nombre') para obtener el nombre de la especialidad
-		const doctores = await Doctor.find().select('-password').populate('especialidad', 'nombre')
+		const { Doctor, Especialidad } = getModels()
+		const doctores = await Doctor.findAll({ attributes: { exclude: ['password'] }, include: [{ model: Especialidad, attributes: ['nombre'] }] })
 		res.status(200).json(doctores)
 	} catch (error) {
 		console.error('Error al obtener doctores:', error.message)
@@ -83,14 +80,15 @@ export const actualizarDoctor = async (req, res) => {
 		const { email, nombre, apellido, especialidad, precioConsulta, telefono, disponibilidad } = req.body
 
 		// Verificar si el doctor existe
-		const doctorExistente = await Doctor.findById(id)
+		const { Doctor } = getModels()
+		const doctorExistente = await Doctor.findByPk(id)
 		if (!doctorExistente) {
 			return res.status(404).json({ message: 'Doctor no encontrado' })
 		}
 
 		// Si se está actualizando el email, verificar que no esté duplicado
 		if (email && email !== doctorExistente.email) {
-			const emailDuplicado = await Doctor.findOne({ email, _id: { $ne: id } })
+			const emailDuplicado = await Doctor.findOne({ where: { email, id: { [Op.ne]: id } } })
 			if (emailDuplicado) {
 				return res.status(400).json({ message: 'El email ya está en uso por otro doctor' })
 			}
@@ -104,12 +102,12 @@ export const actualizarDoctor = async (req, res) => {
 
 		// Si se intenta cambiar la especialidad, verificar que la nueva especialidad exista (funciona pero me parece que no es necesario)
 		/* if (especialidadId !== undefined) {
-      const especialidadExistente = await Especialidad.findById(especialidad);
-      if (!especialidadExistente) {
-        return res.status(400).json({ message: 'La especialidad no existe' });
-      }
-      doctorExistente.especialidad = especialidad; // Actualizar la especialidad
-    } */
+			const especialidadExistente = await Especialidad.findById(especialidad);
+			if (!especialidadExistente) {
+				return res.status(400).json({ message: 'La especialidad no existe' });
+			}
+			doctorExistente.especialidad = especialidad; // Actualizar la especialidad
+		} */
 
 		// Guardar los cambios en la base de datos
 		await doctorExistente.save()
@@ -134,7 +132,8 @@ export const eliminarDoctor = async (req, res) => {
 		const { id } = req.params
 
 		// Verificar si el doctor existe
-		const doctorExistente = await Doctor.findById(id)
+		const { Doctor } = getModels()
+		const doctorExistente = await Doctor.findByPk(id)
 		if (!doctorExistente) {
 			return res.status(404).json({ message: 'Doctor no encontrado' })
 		}
@@ -156,12 +155,12 @@ export const getDoctoresByName = async (req, res) => {
 		}
 
 		// Buscar doctores por nombre usando regex para búsqueda parcial (like)
-		const doctores = await Doctor.find({
-			nombre: { $regex: nombre, $options: 'i' }, // 'i' para case-insensitive
-			activo: true, // solo doctores activos
+		const { Doctor, Especialidad } = getModels()
+		const doctores = await Doctor.findAll({
+			where: { nombre: { [Op.iLike]: `%${nombre}%` }, activo: true },
+			attributes: { exclude: ['password'] },
+			include: [{ model: Especialidad, attributes: ['nombre'] }],
 		})
-			.select('-password')
-			.populate('especialidad', 'nombre')
 
 		if (doctores.length === 0) {
 			return res.status(200).json(doctores, { message: 'No se encontraron doctores con ese nombre' })
@@ -182,19 +181,16 @@ export const getDoctoresByEspecialidad = async (req, res) => {
 		}
 
 		// Buscar primero la especialidad por ID
-		const especialidadEncontrada = await Especialidad.findById(idEspecialidad)
+		const { Especialidad } = getModels()
+		const especialidadEncontrada = await Especialidad.findByPk(idEspecialidad)
 
 		if (!especialidadEncontrada) {
 			return res.status(404).json({ message: 'No se encontró la especialidad' })
 		}
 
 		// Buscar doctores por el ID de la especialidad
-		const doctores = await Doctor.find({
-			especialidad: especialidadEncontrada._id,
-			activo: true, // solo doctores activos
-		})
-			.select('-password')
-			.populate('especialidad', 'nombre')
+		const { Doctor } = getModels()
+		const doctores = await Doctor.findAll({ where: { especialidadId: especialidadEncontrada.id, activo: true }, attributes: { exclude: ['password'] }, include: [{ model: Especialidad, attributes: ['nombre'] }] })
 
 		if (doctores.length === 0) {
 			return res.status(200).json({ doctores: [], message: 'No se encontraron doctores con esa especialidad' })
@@ -211,7 +207,8 @@ export const getDoctorById = async (req, res) => {
 		const { id } = req.params
 
 		// Buscar el doctor por ID
-		const doctor = await Doctor.findById(id).select('-password').populate('especialidad', 'nombre')
+		const { Doctor, Especialidad } = getModels()
+		const doctor = await Doctor.findByPk(id, { attributes: { exclude: ['password'] }, include: [{ model: Especialidad, attributes: ['nombre'] }] })
 
 		if (!doctor) {
 			return res.status(404).json({ message: 'Doctor no encontrado' })

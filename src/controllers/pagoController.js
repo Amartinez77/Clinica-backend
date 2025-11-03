@@ -1,4 +1,4 @@
-import Pago from '../models/Pago.js'
+import { getModels } from '../config/sequelize.js'
 
 export const createPago = async (req, res) => {
 	try {
@@ -9,15 +9,15 @@ export const createPago = async (req, res) => {
 			return res.status(400).json({ error: 'El ID del turno es requerido' })
 		}
 
+		const { Pago } = getModels()
+
 		// Crear el nuevo pago
-		const nuevoPago = new Pago({
+		const nuevoPago = await Pago.create({
 			monto,
 			metodoPago,
-			turno,
+			turnoId: turno,
 			estado: 'pendiente', // Estado inicial del pago
 		})
-
-		await nuevoPago.save()
 
 		res.status(201).json(nuevoPago)
 	} catch (error) {

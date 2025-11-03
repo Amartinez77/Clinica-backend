@@ -1,6 +1,5 @@
 //controlador que maneja la autenticación de usuarios por DNI y contraseña para cualquier usuario
-import Usuario from '../models/Usuario.js'
-import Paciente from '../models/Paciente.js'
+import { getModels } from '../config/sequelize.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { body } from 'express-validator'
@@ -43,7 +42,8 @@ export const loginConDni = [
 			const { dni, password } = req.body
 
 			// Buscar al usuario por DNI en el modelo base Usuario
-			const usuario = await Usuario.findOne({ dni }).select('+password') // Aseguramos que la contraseña se incluya en la consulta
+			const { Usuario } = getModels()
+			const usuario = await Usuario.findOne({ where: { dni } })
 			if (!usuario) {
 				return res.status(401).json({ msg: 'Credenciales inválidas' })
 			}
@@ -55,7 +55,7 @@ export const loginConDni = [
 			}
 
 			// Generar el token JWT
-			const token = generarJWT(usuario._id, usuario._rol || usuario.rol) // Esto toma el rol del campo '_rol' de Mongoose o 'rol' del esquema base Usuario
+			const token = generarJWT(usuario.id, usuario._rol || usuario.rol) // Esto toma el rol del campo '_rol'
 			res.status(200).json({ token })
 		} catch (error) {
 			console.error('Error al iniciar sesión:', error.message)
@@ -81,9 +81,10 @@ export const loginConFirebase = async (req, res) => {
 		const decodedToken = await firebaseApp.auth().verifyIdToken(idToken)
 		const { user_id, name, email } = decodedToken
 
-		const paciente = await Paciente.findOne({ uid_firebase: user_id })
+		const { Paciente } = getModels()
+		const paciente = await Paciente.findOne({ where: { uid_firebase: user_id } })
 		if (paciente) {
-			const token = generarJWT(paciente._id, paciente._rol || paciente.rol)
+			const token = generarJWT(paciente.id, paciente._rol || paciente.rol)
 			return res.status(200).json({ token })
 		}
 
@@ -105,18 +106,20 @@ export const vincularDni = async (req, res) => {
 		const { user_id, dni, email, name } = req.body
 
 		// Primero verificar si el DNI existe en el modelo base Usuario
-		const usuarioExistente = await Usuario.findOne({ dni })
+		const { Usuario, Paciente } = getModels()
+
+		const usuarioExistente = await Usuario.findOne({ where: { dni } })
 
 		if (usuarioExistente) {
 			// Si existe, verificar si es un paciente
-			const paciente = await Paciente.findOne({ dni })
+			const paciente = await Paciente.findOne({ where: { dni } })
 
 			if (paciente) {
 				// Es un paciente, vincular Firebase
 				paciente.uid_firebase = user_id
 				paciente.email = email
 				await paciente.save()
-				const token = generarJWT(paciente._id, paciente._rol || paciente.rol)
+				const token = generarJWT(paciente.id, paciente._rol || paciente.rol)
 				return res.status(200).json({ token })
 			} else {
 				// Es un doctor o administrador
@@ -127,7 +130,7 @@ export const vincularDni = async (req, res) => {
 		}
 
 		// Si no existe ningún usuario con ese DNI, crear un nuevo paciente
-		const nuevoPaciente = new Paciente({
+		const nuevoPaciente = await Paciente.create({
 			dni,
 			uid_firebase: user_id,
 			email,
@@ -137,9 +140,8 @@ export const vincularDni = async (req, res) => {
 			telefono: null,
 			fechaNacimiento: null,
 		})
-		await nuevoPaciente.save()
 
-		const token = generarJWT(nuevoPaciente._id, nuevoPaciente._rol || nuevoPaciente.rol)
+		const token = generarJWT(nuevoPaciente.id, nuevoPaciente._rol || nuevoPaciente.rol)
 		res.status(201).json({ token })
 	} catch (error) {
 		console.error('Error al vincular el DNI:', error.message)
@@ -151,7 +153,8 @@ export const resetPassword = async (req, res) => {
 	const { dni, newPassword } = req.body
 
 	// Comprobar si existe el usuario
-	const usuario = await Usuario.findOne({ dni })
+	const { Usuario } = getModels()
+	const usuario = await Usuario.findOne({ where: { dni } })
 	if (!usuario) {
 		return res.status(404).json({ msg: 'Usuario no encontrado' })
 	}

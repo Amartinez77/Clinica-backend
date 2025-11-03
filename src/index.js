@@ -3,12 +3,9 @@ import dotenv from 'dotenv'
 import colors from 'colors'
 import cors from 'cors'
 import { conexionDB } from './config/db.js'
-import pacienteRoutes from './routes/pacientes.js'
-import doctorRoutes from './routes/doctores.js'
-import especialidadesRoutes from './routes/especialidades.js'
-import administradorRoutes from './routes/administradores.js'
-import authRoutes from './routes/auth.js'
-import mercadoPagoRoutes from './routes/mercadoPagoRoute.js'
+import { connectSQL } from './config/sequelize.js'
+// Rutas se importarán dinámicamente después de inicializar las conexiones a BD
+let pacienteRoutes, doctorRoutes, especialidadesRoutes, administradorRoutes, authRoutes, mercadoPagoRoutes
 import { corsConfig, corsWebhookConfig } from './config/cors.js'
 import morgan from 'morgan'
 import turnoRoutes from './routes/turnoRoutes.js'
@@ -19,8 +16,28 @@ import { swaggerDocs } from './config/swagger.js'
 
 dotenv.config()
 
-// conectar a la base de datos
-conexionDB()
+// conectar a la base de datos y a SQL (si corresponde)
+const startApp = async () => {
+	await conexionDB()
+	await connectSQL()
+
+	// Importar rutas dinámicamente una vez que los modelos SQL estén inicializados
+	const pacientesMod = await import('./routes/pacientes.js')
+	pacienteRoutes = pacientesMod.default
+	const doctoresMod = await import('./routes/doctores.js')
+	doctorRoutes = doctoresMod.default
+	const especialidadesMod = await import('./routes/especialidades.js')
+	especialidadesRoutes = especialidadesMod.default
+	const administradoresMod = await import('./routes/administradores.js')
+	administradorRoutes = administradoresMod.default
+	const authMod = await import('./routes/auth.js')
+	authRoutes = authMod.default
+	const mercadoMod = await import('./routes/mercadoPagoRoute.js')
+	mercadoPagoRoutes = mercadoMod.default
+}
+
+// iniciar conexiones y carga de rutas
+await startApp()
 
 // instanciar express
 const app = express()
@@ -32,12 +49,12 @@ app.use(express.json())
 app.use(morgan('dev'))
 
 //ruta de swagger
-if(process.argv[2] === '--api'){
+if (process.argv[2] === '--api') {
 	swaggerDocs(app)
 }
 //rutas de la API
 
-app.use('/api/mercadoPago',cors(corsWebhookConfig), mercadoPagoRoutes)
+app.use('/api/mercadoPago', cors(corsWebhookConfig), mercadoPagoRoutes)
 // CORS
 app.use(cors(corsConfig))
 app.use('/api/pacientes', pacienteRoutes)
@@ -54,7 +71,7 @@ const port = process.env.PORT || 4000
 
 app.listen(port, () => {
 	console.log(colors.cyan.bold(`Servidor corriendo en el puerto: ${port}`))
-	if(process.argv[2] === '--api'){
+	if (process.argv[2] === '--api') {
 		console.log('Documentación Swagger en http://localhost:4000/api-docs')
 		console.log('Documentación de referencia en http://localhost:4000/reference')
 	}
