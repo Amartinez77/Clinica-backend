@@ -11,7 +11,8 @@
 		"start": "node src/index.js",
 		"dev:api": "nodemon src/index.js --api",
 		"setup:especialidades": "node scripts/generateEspecialidades.js",
-		"setup:test-data": "node scripts/generateTestData.js"
+		"setup:test-data": "node scripts/generateTestData.js",
+		"setup:admin": "node scripts/createAdminUser.js"
 	},
 	"dependencies": {
 		"@scalar/express-api-reference": "^0.8.7",

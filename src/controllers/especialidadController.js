@@ -1,117 +1,97 @@
-import Especialidad from "../models/Especialidad.js";
+import { getModels } from '../config/sequelize.js'
 
-// crear una nueva especialidad
+// crear una nueva especialidad (Sequelize)
 export const crearEspecialidad = async (req, res) => {
   try {
-    const { nombre } = req.body;
+    const { nombre, descripcion } = req.body
+    const { Especialidad } = getModels() || {}
+    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
 
     // Verificar si la especialidad ya existe
-    const especialidadExistente = await Especialidad.findOne({ nombre });
-    if (especialidadExistente) {
-      return res.status(400).json({ message: 'La especialidad ya existe' });
-    }
+    const especialidadExistente = await Especialidad.findOne({ where: { nombre } })
+    if (especialidadExistente) return res.status(400).json({ message: 'La especialidad ya existe' })
 
-    // Crear una nueva especialidad
-    const nuevaEspecialidad = new Especialidad({ nombre });
-    await nuevaEspecialidad.save();
-
-    res.status(201).json({ message: 'Especialidad creada exitosamente', especialidad: nuevaEspecialidad });
+    const nueva = await Especialidad.create({ nombre, descripcion })
+    res.status(201).json({ message: 'Especialidad creada exitosamente', especialidad: nueva })
   } catch (error) {
-    console.error('Error al crear la especialidad:', error.message);
-    if (error.name === 'ValidationError') {
-      let errors = {};
-      Object.keys(error.errors).forEach(key => {
-        errors[key] = error.errors[key].message;
-      });
-      return res.status(400).json({ message: error.message, errors });
+    console.error('Error al crear la especialidad:', error)
+    if (error.name && error.name.includes('Sequelize')) {
+      return res.status(400).json({ message: 'Error de validación en Especialidad', details: error.message })
     }
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'La especialidad ya existe' });
-    }
-    res.status(500).json({ message: 'Error interno del servidor' });
+    res.status(500).json({ message: 'Error interno del servidor' })
   }
-};
+}
 
 // Obtener todas las especialidades
 export const getEspecialidades = async (req, res) => {
   try {
-    const especialidades = await Especialidad.find();
-    res.status(200).json(especialidades);
+    const { Especialidad } = getModels() || {}
+    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
+    const listado = await Especialidad.findAll()
+    res.status(200).json(listado)
   } catch (error) {
-    console.error('Error al obtener especialidades:', error.message);
-    res.status(500).json({ message: 'Error interno del servidor' });
+    console.error('Error al obtener especialidades:', error)
+    res.status(500).json({ message: 'Error interno del servidor' })
   }
-};
+}
 
 // Obtener una especialidad por ID
 export const getEspecialidadById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const especialidad = await Especialidad.findById(id);
-    if (!especialidad) {
-      return res.status(404).json({ message: 'Especialidad no encontrada' });
-    }
-    res.status(200).json(especialidad);
+    const { id } = req.params
+    const { Especialidad } = getModels() || {}
+    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
+
+    const especialidad = await Especialidad.findByPk(id)
+    if (!especialidad) return res.status(404).json({ message: 'Especialidad no encontrada' })
+    res.status(200).json(especialidad)
   } catch (error) {
-    console.error('Error al obtener la especialidad:', error.message);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: 'ID de especialidad inválido' });
-    }
-    res.status(500).json({ message: 'Error interno del servidor' });
+    console.error('Error al obtener la especialidad:', error)
+    res.status(500).json({ message: 'Error interno del servidor' })
   }
-};
+}
 
 // Actualizar una especialidad
 export const actualizarEspecialidad = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { nombre } = req.body;
+    const { id } = req.params
+    const { nombre, descripcion } = req.body
+    const { Especialidad } = getModels() || {}
+    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
 
-    // Verificar si la especialidad existe
-    const especialidadExistente = await Especialidad.findById(id);
-    if (!especialidadExistente) {
-      return res.status(404).json({ message: 'Especialidad no encontrada' });
+    const especialidad = await Especialidad.findByPk(id)
+    if (!especialidad) return res.status(404).json({ message: 'Especialidad no encontrada' })
+
+    // Si se cambia el nombre, comprobar unicidad
+    if (nombre && nombre !== especialidad.nombre) {
+      const dup = await Especialidad.findOne({ where: { nombre } })
+      if (dup) return res.status(400).json({ message: 'La especialidad ya existe' })
+      especialidad.nombre = nombre
     }
-    res.status(200).json({ message: 'Especialidad actualizada exitosamente', especialidad: especialidadExistente });
+    if (descripcion !== undefined) especialidad.descripcion = descripcion
+
+    await especialidad.save()
+    res.status(200).json({ message: 'Especialidad actualizada exitosamente', especialidad })
   } catch (error) {
-    console.error('Error al actualizar la especialidad:', error.message);
-    if (error.name === 'ValidationError') {
-      let errors = {};
-      Object.keys(error.errors).forEach(key => {
-        errors[key] = error.errors[key].message;
-      });
-      return res.status(400).json({ message: error.message, errors });
-    }
-
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'La especialidad ya existe' });
-    }
-
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: 'ID de especialidad inválido' });
-    }
-    res.status(500).json({ message: 'Error interno del servidor' });
+    console.error('Error al actualizar la especialidad:', error)
+    res.status(500).json({ message: 'Error interno del servidor' })
   }
-};
+}
 
-// Eliminar una especialidad (borrado lógico)
+// Eliminar una especialidad
 export const eliminarEspecialidad = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
+    const { Especialidad } = getModels() || {}
+    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
 
-    // Verificar si la especialidad existe
-    const especialidadExistente = await Especialidad.findById(id);
-    if (!especialidadExistente) {
-      return res.status(404).json({ message: 'Especialidad no encontrada' });
-    }
-    // Eliminar la especialidad (borrado lógico)
-    await Especialidad.findByIdAndDelete(id);
+    const especialidad = await Especialidad.findByPk(id)
+    if (!especialidad) return res.status(404).json({ message: 'Especialidad no encontrada' })
+
+    await especialidad.destroy()
+    res.status(200).json({ message: 'Especialidad eliminada exitosamente' })
   } catch (error) {
-    console.error('Error al eliminar la especialidad:', error.message);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: 'ID de especialidad inválido' });
-    }
-    res.status(500).json({ message: 'Error interno del servidor' });
+    console.error('Error al eliminar la especialidad:', error)
+    res.status(500).json({ message: 'Error interno del servidor' })
   }
-  res.status(200).json({ message: 'Especialidad eliminada exitosamente' });
-};
+}

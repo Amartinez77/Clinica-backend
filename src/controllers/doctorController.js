@@ -8,6 +8,18 @@ export const registrarDoctor = async (req, res) => {
 	try {
 		const { dni, email, password, nombre, apellido, matricula, especialidad, precioConsulta, telefono } = req.body
 
+		console.log('[Doctor DEBUG] registrarDoctor -> body recibido =', {
+			dni,
+			email,
+			nombre,
+			apellido,
+			matricula,
+			especialidad,
+			precioConsulta,
+			telefono,
+			tipoEspecialidad: typeof especialidad,
+		})
+
 		// Verificar si el doctor ya existe por email o DNI
 		const { Doctor, Especialidad } = getModels()
 		const doctorExistente = await Doctor.findOne({ where: { [Op.or]: [{ email }, { dni }] } })
@@ -22,7 +34,9 @@ export const registrarDoctor = async (req, res) => {
 		}
 
 		// Verificar si la especialidad existe
+		console.log('[Doctor DEBUG] Buscando Especialidad.findByPk(', especialidad, ')')
 		const especialidadExistente = await Especialidad.findByPk(especialidad)
+		console.log('[Doctor DEBUG] Resultado Especialidad =', especialidadExistente ? { id: especialidadExistente.id, nombre: especialidadExistente.nombre } : null)
 		if (!especialidadExistente) {
 			return res.status(400).json({ message: 'La especialidad no existe' })
 		}
@@ -45,9 +59,11 @@ export const registrarDoctor = async (req, res) => {
 			activo: true, // Establecer como activo por defecto
 		})
 
+		console.log('[Doctor DEBUG] Doctor creado OK ->', { id: nuevoDoctor.id, nombre: nuevoDoctor.nombre, especialidadId: nuevoDoctor.especialidadId })
 		res.status(201).json({ message: 'Doctor registrado exitosamente', doctorId: nuevoDoctor.id })
 	} catch (error) {
 		console.error('Error al registrar doctor:', error.message)
+		console.error('[Doctor DEBUG] Stack:', error.stack)
 		if (error.name === 'ValidationError') {
 			let errors = {}
 			Object.keys(error.errors).forEach(key => {
@@ -130,19 +146,23 @@ export const actualizarDoctor = async (req, res) => {
 export const eliminarDoctor = async (req, res) => {
 	try {
 		const { id } = req.params
+		console.log('[Doctor DEBUG] eliminarDoctor -> id param =', id)
 
 		// Verificar si el doctor existe
 		const { Doctor } = getModels()
 		const doctorExistente = await Doctor.findByPk(id)
+		console.log('[Doctor DEBUG] eliminarDoctor -> encontrado =', doctorExistente ? { id: doctorExistente.id, activo: doctorExistente.activo } : null)
 		if (!doctorExistente) {
 			return res.status(404).json({ message: 'Doctor no encontrado' })
 		}
 		// Marcar al doctor como inactivo
 		doctorExistente.activo = false
 		await doctorExistente.save()
+		console.log('[Doctor DEBUG] eliminarDoctor -> marcado inactivo OK')
 		res.status(200).json({ message: 'Doctor eliminado exitosamente' })
 	} catch (error) {
 		console.error('Error al eliminar el doctor:', error.message)
+		console.error('[Doctor DEBUG] Stack:', error.stack)
 		res.status(500).json({ message: 'Error interno del servidor' })
 	}
 }

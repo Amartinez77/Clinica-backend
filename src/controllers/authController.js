@@ -1,20 +1,36 @@
 //controlador que maneja la autenticación de usuarios por DNI y contraseña para cualquier usuario
 import { getModels } from '../config/sequelize.js'
 import jwt from 'jsonwebtoken'
+import jwtConfig from '../config/jwtConfig.js'
 import bcrypt from 'bcryptjs'
 import { body } from 'express-validator'
 import { handleInputErrors } from '../middlewares/validacionInputs.js'
 import firebaseApp from '../config/firebase.js'
+import { getAuth } from 'firebase-admin/auth'
+
+// Normalizar el nombre del rol para que coincida con lo que espera el frontend
+const normalizeRoleForFrontend = (rawRole) => {
+	if (!rawRole) return 'Paciente'
+	const r = String(rawRole).toLowerCase()
+	if (r.includes('admin')) return 'admin' // frontend acepta 'admin' o 'Administrador'
+	if (r.includes('doctor') || r.includes('medico')) return 'Doctor'
+	if (r.includes('pacient') || r === 'usuario' || r === 'user') return 'Paciente'
+	// fallback: capitalizar primera letra
+	return rawRole.charAt(0).toUpperCase() + rawRole.slice(1)
+}
 
 // funcion auxiliar para generar un token JWT
 const generarJWT = (ID, rol) => {
+	const normalized = normalizeRoleForFrontend(rol)
 	const payload = {
 		usuario: {
 			id: ID,
-			rol: rol, // rol se toma del campo 'rol' del esquema base Usuario o de '_rol' de mongodb
+			rol: normalized, // rol normalizado para el frontend
 		},
 	}
-	return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' })
+	const secret = process.env.JWT_SECRET || jwtConfig.secret
+	const expiresIn = jwtConfig.expiresIn || '1h'
+	return jwt.sign(payload, secret, { expiresIn })
 }
 
 // validación de inputs para el login con dni y contraseña
@@ -41,21 +57,42 @@ export const loginConDni = [
 		try {
 			const { dni, password } = req.body
 
-			// Buscar al usuario por DNI en el modelo base Usuario
-			const { Usuario } = getModels()
-			const usuario = await Usuario.findOne({ where: { dni } })
-			if (!usuario) {
+			// Intentar buscar por DNI en Usuario, Paciente y Doctor (en ese orden)
+			const { Usuario, Paciente, Doctor } = getModels() || {}
+
+			let registro = null
+			let rol = 'Usuario'
+
+			if (Usuario) {
+				registro = await Usuario.findOne({ where: { dni } })
+			}
+			if (!registro && Paciente) {
+				registro = await Paciente.findOne({ where: { dni } })
+				if (registro) rol = 'Paciente'
+			}
+			if (!registro && Doctor) {
+				registro = await Doctor.findOne({ where: { dni } })
+				if (registro) rol = 'Doctor'
+			}
+
+			console.log('DEBUG auth: buscado dni=', dni, '=> usuario encontrado=', registro ? registro.id : null)
+			if (!registro) {
+				return res.status(401).json({ msg: 'Credenciales inválidas' })
+			}
+
+			if (!registro.password) {
 				return res.status(401).json({ msg: 'Credenciales inválidas' })
 			}
 
 			// comparar la contraseña hasheada
-			const passwordValido = await bcrypt.compare(password, usuario.password)
+			const passwordValido = await bcrypt.compare(password, registro.password)
+			console.log('DEBUG auth: comparar password para usuario', registro.id, '=> resultado=', passwordValido)
 			if (!passwordValido) {
 				return res.status(401).json({ msg: 'Credenciales inválidas' })
 			}
 
-			// Generar el token JWT
-			const token = generarJWT(usuario.id, usuario._rol || usuario.rol) // Esto toma el rol del campo '_rol'
+			// Generar el token JWT con rol normalizado
+			const token = generarJWT(registro.id, registro._rol || registro.rol || rol)
 			res.status(200).json({ token })
 		} catch (error) {
 			console.error('Error al iniciar sesión:', error.message)
@@ -67,7 +104,25 @@ export const loginConDni = [
 // obtener información del usuario autenticado
 export const obtenerPerfilUsuario = async (req, res) => {
 	try {
-		res.json(req.usuario) // req.usuario se establece en el middleware de autenticación
+		// Asegurarnos de enviar un objeto plano y normalizar el rol para el frontend
+		const usuario = req.usuario
+		if (!usuario) return res.status(401).json({ msg: 'No autorizado' })
+		// si es instancia de Sequelize, obtener objeto plano
+		let plain = usuario.get ? usuario.get({ plain: true }) : { ...usuario }
+		// Compatibilidad con frontend legacy: exponer _id además de id
+		if (plain && plain.id && !plain._id) {
+			plain._id = plain.id
+		}
+		// Normalizar rol esperado por el frontend
+		plain._rol = normalizeRoleForFrontend(plain._rol || plain.rol)
+		// Debug útil para verificar forma del objeto
+		console.log('[AUTH DEBUG] /auth/me ->', {
+			id: plain.id,
+			_id: plain._id,
+			rol: plain._rol,
+			model: usuario?.constructor?.name,
+		})
+		res.json(plain)
 	} catch (error) {
 		console.error('Error al obtener el usuario autenticado:', error.message)
 		res.status(500).json({ msg: 'Error interno del servidor' })
@@ -78,7 +133,8 @@ export const loginConFirebase = async (req, res) => {
 	try {
 		const { idToken } = req.body
 
-		const decodedToken = await firebaseApp.auth().verifyIdToken(idToken)
+		// Verificamos el idToken con Firebase Admin
+		const decodedToken = await getAuth().verifyIdToken(idToken)
 		const { user_id, name, email } = decodedToken
 
 		const { Paciente } = getModels()

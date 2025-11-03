@@ -1,23 +1,16 @@
-/**
- * Script para generar datos de prueba para las estadísticas
- * Ejecutar con: node scripts/generateTestData.js
- */
+// Proxy: este script redirige a la versión legacy ubicada en
+// `scripts/legacy_mongoose/generateTestData.js`.
+// Ejecuta:
+//   node scripts/generateTestData.js
+// y en realidad correrá el script legacy.
 
-import mongoose from 'mongoose'
-import dotenv from 'dotenv'
-import colors from 'colors'
-import Usuario from '../src/models/Usuario.js'
-import Doctor from '../src/models/Doctor.js'
-import Especialidad from '../src/models/Especialidad.js'
-import Paciente from '../src/models/Paciente.js'
-import Turno from '../src/models/Turno.js'
-import bcrypt from 'bcryptjs'
+import './legacy_mongoose/generateTestData.js'
 
-dotenv.config()
+// Nota: la implementación real se encuentra en scripts/legacy_mongoose/
 
-const generateTestData = async () => {
+// Encapsular la ejecución en una función async para que los await y el try/catch sean válidos.
+async function generateTestData() {
 	try {
-		// Conectar a MongoDB
 		await mongoose.connect(process.env.DB_URL)
 		console.log(colors.cyan('Conectado a MongoDB'))
 

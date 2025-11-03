@@ -1,23 +1,6 @@
-import mongoose from 'mongoose'
-import colors from 'colors'
-import { exit } from 'node:process'
-
-/*
- * Conexion a la base de datos MongoDB
- */
+// MongoDB connection was migrated to `src/legacy_mongoose/config/db.js`.
+// This stub keeps the API but avoids attempting to connect by default.
 export const conexionDB = async () => {
-	try {
-		const dbUrl = process.env.DB_URL
-		if (!dbUrl) {
-			console.log(colors.yellow('DB_URL no definido — se omite la conexión a MongoDB.'))
-			return null
-		}
-
-		const connection = await mongoose.connect(dbUrl)
-		const url = `${connection.connection.host}:${connection.connection.port}`
-		console.log(colors.magenta.bold(`MongoDB se conectó: ${url}`))
-	} catch (error) {
-		console.log(colors.red(`Error: ${error.message}`))
-		exit(1)
-	}
+	console.log('conexionDB: MongoDB legacy moved to src/legacy_mongoose/config/db.js — no action taken.')
+	return null
 }

@@ -37,7 +37,7 @@ router.get('/', getDoctores) // Obtener todos los doctores
 // Actualizar un doctor por ID
 router.put(
 	'/:id',
-	param('id').isMongoId().withMessage('El ID debe ser un ID de Mongo válido'),
+	param('id').isInt({ min: 1 }).withMessage('El ID debe ser un entero positivo'),
 	body('email').optional().isEmail().withMessage('El email debe ser válido'),
 	body('telefono').optional().isString().withMessage('El teléfono debe ser una cadena de texto'),
 	body('precioConsulta').optional().isNumeric().withMessage('El precio de la consulta debe ser un número'),
@@ -50,7 +50,7 @@ router.put(
 // Eliminar un doctor por ID (borrado lógico)
 router.delete(
 	'/:id',
-	param('id').isMongoId().withMessage('El ID debe ser un ID de Mongo válido'),
+	param('id').isInt({ min: 1 }).withMessage('El ID debe ser un entero positivo'),
 	handleInputErrors,
 	protegerRuta,
 	autorizarRoles(['admin']),

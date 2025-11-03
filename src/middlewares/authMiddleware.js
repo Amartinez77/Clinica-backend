@@ -12,8 +12,9 @@
 
 // src/middlewares/authMiddleware.js
 import jwt from 'jsonwebtoken';
+import jwtConfig from '../config/jwtConfig.js'
 import colors from 'colors';
-import Usuario from '../models/Usuario.js'; // Importa el modelo base Usuario
+import { getModels } from '../config/sequelize.js'
 
 export const protegerRuta = async (req, res, next) => {
   let token;
@@ -22,19 +23,30 @@ export const protegerRuta = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = process.env.JWT_SECRET || jwtConfig.secret
+      const decoded = jwt.verify(token, secret);
 
-      // Buscar al usuario en la base de datos usando el modelo base Usuario
-      // Mongoose se encargará de encontrar el discriminador correcto
-      const usuario = await Usuario.findById(decoded.usuario.id).select('-password');
+      // Buscar al usuario en la base de datos usando el rol para elegir el modelo
+      const { Usuario, Paciente, Doctor } = getModels() || {}
+      if (!Usuario && !Paciente && !Doctor) {
+        console.error(colors.red('[AUTH ERROR] Modelos SQL no inicializados en Sequelize'))
+        return res.status(500).json({ msg: 'Error interno del servidor' })
+      }
 
-      if (!usuario) {
+      const rolToken = String(decoded?.usuario?.rol || '').toLowerCase()
+      let Model = Usuario
+      if (rolToken.includes('pacient') && Paciente) Model = Paciente
+      else if (rolToken.includes('doctor') && Doctor) Model = Doctor
+
+      const usuarioDB = await Model.findByPk(decoded.usuario.id, { attributes: { exclude: ['password'] } })
+
+      if (!usuarioDB) {
         console.log(colors.red(`[AUTH DEBUG] Usuario no encontrado para ID: ${decoded.usuario.id}, Rol: ${decoded.usuario.rol}`));
         return res.status(401).json({ msg: 'Usuario no encontrado' });
       }
 
       // Adjuntar el usuario al objeto req
-      req.usuario = usuario;
+      req.usuario = usuarioDB;
       next();
 
     } catch (error) {
@@ -60,12 +72,13 @@ export const autorizarRoles = (roles) => {
       return res.status(403).json({ msg: 'Acceso denegado: No autenticado' });
     }
 
-    // Aquí usamos el campo '_rol' que Mongoose añade automáticamente a los discriminadores
-    // Opcionalmente, puedes usar el campo 'rol' que definimos en el esquema base si lo prefieres.
-    // Ambos deberían contener el mismo valor ('paciente', 'doctor', 'admin').
-    if (!roles.includes(req.usuario._rol)) { // Usamos _rol
-      console.log(colors.red(`[AUTH DEBUG] Acceso denegado para rol: ${req.usuario._rol}. Roles requeridos: ${roles.join(', ')}`));
-      return res.status(403).json({ msg: 'Acceso denegado: No tienes los permisos necesarios' });
+    // Aceptamos tanto string como array en la firma: autorizarRoles('admin') o autorizarRoles(['admin','doctor'])
+    const required = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [String(roles).toLowerCase()]
+    const userRole = String(req.usuario._rol || req.usuario.rol || '').toLowerCase()
+
+    if (!required.includes(userRole)) {
+      console.log(colors.red(`[AUTH DEBUG] Acceso denegado para rol: ${userRole}. Roles requeridos: ${required.join(', ')}`))
+      return res.status(403).json({ msg: 'Acceso denegado: No tienes los permisos necesarios' })
     }
     next();
   };

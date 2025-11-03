@@ -2,7 +2,6 @@ import express from 'express'
 import dotenv from 'dotenv'
 import colors from 'colors'
 import cors from 'cors'
-import { conexionDB } from './config/db.js'
 import { connectSQL } from './config/sequelize.js'
 // Rutas se importarán dinámicamente después de inicializar las conexiones a BD
 let pacienteRoutes, doctorRoutes, especialidadesRoutes, administradorRoutes, authRoutes, mercadoPagoRoutes
@@ -16,9 +15,7 @@ import { swaggerDocs } from './config/swagger.js'
 
 dotenv.config()
 
-// conectar a la base de datos y a SQL (si corresponde)
 const startApp = async () => {
-	await conexionDB()
 	await connectSQL()
 
 	// Importar rutas dinámicamente una vez que los modelos SQL estén inicializados
