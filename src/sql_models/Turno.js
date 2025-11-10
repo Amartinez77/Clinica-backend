@@ -5,8 +5,7 @@ export default function initTurno(sequelize) {
     'Turno',
     {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      fecha: { type: DataTypes.STRING, allowNull: false },
-      hora: { type: DataTypes.STRING, allowNull: false },
+      fechaHora: { type: DataTypes.DATE, allowNull: false },
       estado: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pendiente' },
       observaciones: { type: DataTypes.TEXT, allowNull: true, defaultValue: '' },
       expireAt: { type: DataTypes.DATE, allowNull: true },

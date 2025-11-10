@@ -131,10 +131,22 @@ export const obtenerPerfilUsuario = async (req, res) => {
 
 export const loginConFirebase = async (req, res) => {
 	try {
+		console.log('[AUTH DEBUG] /login/firebase - body:', req.body);
 		const { idToken } = req.body
+		
+		if (!idToken) {
+			console.log('[AUTH ERROR] /login/firebase - No idToken provided');
+			return res.status(400).json({ msg: 'Token no proporcionado' });
+		}
 
+		console.log('[AUTH DEBUG] /login/firebase - Verifying token...');
 		// Verificamos el idToken con Firebase Admin
 		const decodedToken = await getAuth().verifyIdToken(idToken)
+		console.log('[AUTH DEBUG] /login/firebase - Token verified:', { 
+			uid: decodedToken.uid,
+			email: decodedToken.email,
+			name: decodedToken.name 
+		});
 		const { user_id, name, email } = decodedToken
 
 		const { Paciente } = getModels()

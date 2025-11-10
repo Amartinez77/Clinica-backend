@@ -45,4 +45,11 @@ try {
 	throw err
 }
 
+// Log Firebase initialization status
+console.log('[FIREBASE] Initialization status:', {
+    projectId: resolvedProjectId,
+    credentialType: credential ? credential.constructor.name : 'none',
+    isInitialized: firebaseApp ? 'yes' : 'no'
+});
+
 export default firebaseApp

@@ -3,34 +3,62 @@ import { Op } from 'sequelize'
 
 const createTurno = async (req, res) => {
 	try {
+		console.log('[TURNO DEBUG] Creando turno - Request:', {
+			params: req.params,
+			body: req.body
+		});
+
 		const { idPaciente, idDoctor } = req.params
-		const { fecha, hora, observaciones } = req.body
+		const { fechaHora, observaciones } = req.body
+
+		if (!fechaHora) {
+			console.log('[TURNO ERROR] fechaHora no proporcionada');
+			return res.status(400).json({ error: 'La fecha y hora son requeridas' });
+		}
+
 		const { Paciente, Doctor, Turno } = getModels()
+		
 		// Verificar si el paciente existe
 		const paciente = await Paciente.findByPk(idPaciente)
 		if (!paciente) {
+			console.log('[TURNO ERROR] Paciente no encontrado:', idPaciente);
 			return res.status(404).json({ error: 'Paciente no encontrado' })
 		}
 
 		// Verificar si el doctor existe
 		const doctor = await Doctor.findByPk(idDoctor)
 		if (!doctor) {
+			console.log('[TURNO ERROR] Doctor no encontrado:', idDoctor);
 			return res.status(404).json({ error: 'Doctor no encontrado' })
+		}
+
+		// Verificar si ya existe un turno para ese doctor en esa fecha y hora
+		const turnoExistente = await Turno.findOne({
+			where: {
+				doctorId: idDoctor,
+				fechaHora: new Date(fechaHora)
+			}
+		});
+
+		if (turnoExistente) {
+			console.log('[TURNO ERROR] Ya existe un turno para esa fecha y hora');
+			return res.status(400).json({ error: 'Ya existe un turno para ese doctor en esa fecha y hora' });
 		}
 
 		// Crear el turno
 		const turno = await Turno.create({
 			pacienteId: idPaciente,
 			doctorId: idDoctor,
-			fecha,
-			hora,
+			fechaHora: new Date(fechaHora),
 			observaciones,
+			estado: 'pendiente'
 		})
 
+		console.log('[TURNO DEBUG] Turno creado exitosamente:', turno.id);
 		res.status(201).json(turno)
 	} catch (error) {
-		console.error(error)
-		res.status(500).json({ error: 'Error al crear el turno' })
+		console.error('[TURNO ERROR] Error al crear turno:', error);
+		res.status(500).json({ error: 'Error al crear el turno', details: error.message })
 	}
 }
 const getTurnosByPaciente = async (req, res) => {

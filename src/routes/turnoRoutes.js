@@ -10,10 +10,15 @@ const router = express.Router()
 // Crear un turno
 router.post(
 	'/paciente/:idPaciente/doctor/:idDoctor',
-	param('idPaciente').isMongoId().withMessage('ID de paciente inválido'),
-	param('idDoctor').isMongoId().withMessage('ID de doctor inválido'),
-	body('fecha').isString().withMessage('Fecha inválida'),
-	body('hora').isString().withMessage('Hora inválida'),
+	param('idPaciente').isInt().withMessage('ID de paciente debe ser un número'),
+	param('idDoctor').isInt().withMessage('ID de doctor debe ser un número'),
+	body('fechaHora')
+		.isISO8601()
+		.withMessage('Fecha y hora debe ser una fecha ISO 8601 válida'),
+	body('observaciones')
+		.optional()
+		.isString()
+		.withMessage('Observaciones debe ser un texto'),
 	handleInputErrors,
 	turnoController.createTurno
 )

@@ -3,6 +3,7 @@ import dotenv from 'dotenv'
 import colors from 'colors'
 import cors from 'cors'
 import { connectSQL } from './config/sequelize.js'
+import client from 'prom-client'
 // Rutas se importarán dinámicamente después de inicializar las conexiones a BD
 let pacienteRoutes, doctorRoutes, especialidadesRoutes, administradorRoutes, authRoutes, mercadoPagoRoutes
 import { corsConfig, corsWebhookConfig } from './config/cors.js'
@@ -44,6 +45,61 @@ const app = express()
 app.use(express.json())
 
 app.use(morgan('dev'))
+
+// ----- Health & Metrics Setup -----
+// Health endpoint: simple status plus SQL connectivity flag
+// Prometheus metrics: default metrics + HTTP request duration histogram
+const collectDefaultMetrics = client.collectDefaultMetrics
+collectDefaultMetrics({ prefix: 'clinica_' })
+
+// Histogram para tiempos de respuesta HTTP
+const httpRequestDuration = new client.Histogram({
+	name: 'clinica_http_request_duration_seconds',
+	help: 'Duración de las peticiones HTTP en segundos',
+	labelNames: ['method', 'route', 'status_code'],
+	buckets: [0.05, 0.1, 0.3, 0.5, 1, 2, 5]
+})
+
+// Middleware para medir duración
+app.use((req, res, next) => {
+	const start = process.hrtime.bigint()
+	res.on('finish', () => {
+		const diff = Number(process.hrtime.bigint() - start) / 1e9
+		// Sanitizar route (usar req.route?.path si existe, fallback a req.path)
+		const route = req.route && req.route.path ? req.route.path : req.path
+		httpRequestDuration.observe({ method: req.method, route, status_code: res.statusCode }, diff)
+	})
+	next()
+})
+
+// Health
+app.get('/health', async (req, res) => {
+	let sqlStatus = 'unknown'
+	try {
+		// verificar conexión simple con authenticate si existe
+		const sequelizeModule = await import('./config/sequelize.js')
+		const sequelizeInstance = sequelizeModule.getSequelize()
+		if (sequelizeInstance) {
+			await sequelizeInstance.authenticate()
+			sqlStatus = 'up'
+		} else {
+			sqlStatus = 'disabled'
+		}
+	} catch (e) {
+		sqlStatus = 'error'
+	}
+	res.json({ status: 'ok', sql: sqlStatus, time: new Date().toISOString() })
+})
+
+// Metrics
+app.get('/metrics', async (req, res) => {
+	try {
+		res.set('Content-Type', client.register.contentType)
+		res.end(await client.register.metrics())
+	} catch (err) {
+		res.status(500).json({ error: 'error generating metrics' })
+	}
+})
 
 //ruta de swagger
 if (process.argv[2] === '--api') {
