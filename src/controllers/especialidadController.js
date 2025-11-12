@@ -26,12 +26,12 @@ export const crearEspecialidad = async (req, res) => {
 export const getEspecialidades = async (req, res) => {
   try {
     const { Especialidad } = getModels() || {}
-    if (!Especialidad) return res.status(500).json({ message: 'Model Especialidad no inicializado' })
+    if (!Especialidad) return res.status(200).json([])
     const listado = await Especialidad.findAll()
-    res.status(200).json(listado)
+    res.status(200).json(listado || [])
   } catch (error) {
     console.error('Error al obtener especialidades:', error)
-    res.status(500).json({ message: 'Error interno del servidor' })
+    res.status(200).json([])
   }
 }
 

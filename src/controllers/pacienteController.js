@@ -6,9 +6,11 @@ import { Op } from 'sequelize'
 // funciones
 export const registrarPaciente = async (req, res) => {
 	try {
+		console.log('[REGISTRO PACIENTE] Solicitud recibida:', req.body)
 		// aca cambiamos para que el paciente se registre con dni y contraseña
 		// y no con email y contraseña como en el modelo base Usuario
 		const { dni, password, nombre, apellido, telefono, fechaNacimiento, email } = req.body
+		console.log('[REGISTRO PACIENTE] Datos extraídos:', { dni, password, nombre, apellido, telefono, fechaNacimiento, email })
 
 		// Validación de campos obligatorios
 		// Esto podemos hacerlo con un middleware de express-validator
@@ -54,7 +56,8 @@ export const registrarPaciente = async (req, res) => {
 		console.log('Paciente registrado exitosamente:', nuevoPaciente.toJSON())
 		res.status(201).json({ message: 'Paciente registrado exitosamente', paciente: nuevoPaciente })
 	} catch (error) {
-		console.error('Error al registrar paciente:', error.message)
+		console.error('[REGISTRO PACIENTE] Error al registrar paciente:', error.message)
+		console.error('[REGISTRO PACIENTE] Stack trace:', error.stack)
 		if (error.name === 'ValidationError') {
 			let errors = {}
 			Object.keys(error.errors).forEach(key => {

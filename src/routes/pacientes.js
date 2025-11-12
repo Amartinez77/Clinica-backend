@@ -6,6 +6,14 @@ import { protegerRuta, autorizarRoles } from '../middlewares/authMiddleware.js'
 import { body,param } from 'express-validator'
 import { handleInputErrors } from '../middlewares/validacionInputs.js'
 
+// Middleware para log de peticiones POST en pacientes
+router.use((req, res, next) => {
+	if (req.method === 'POST') {
+		console.log('[PACIENTES ROUTE] POST request:', req.path, 'Body:', req.body)
+	}
+	next()
+})
+
 
 // validaciones comunes para registrar CUALQUIER TIPO DE USUARIO (heredado de Usuario)
 const registrarUsuarioValidaciones = [

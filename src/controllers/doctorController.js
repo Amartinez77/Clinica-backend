@@ -81,11 +81,19 @@ export const getDoctores = async (req, res) => {
 		// se usa .select('-password') para no enviar la contraseña al cliente
 		// se usa .populate('especialidad', 'nombre') para obtener el nombre de la especialidad
 		const { Doctor, Especialidad } = getModels()
-		const doctores = await Doctor.findAll({ attributes: { exclude: ['password'] }, include: [{ model: Especialidad, attributes: ['nombre'] }] })
-		res.status(200).json(doctores)
+		
+		if (!Doctor || !Especialidad) {
+			return res.status(200).json([])
+		}
+		
+		const doctores = await Doctor.findAll({ 
+			attributes: { exclude: ['password'] }, 
+			include: [{ model: Especialidad, attributes: ['nombre'], required: false }] 
+		})
+		res.status(200).json(doctores || [])
 	} catch (error) {
 		console.error('Error al obtener doctores:', error.message)
-		res.status(500).json({ message: 'Error interno del servidor' })
+		res.status(200).json([])
 	}
 }
 
