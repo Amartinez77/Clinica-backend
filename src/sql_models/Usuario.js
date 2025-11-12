@@ -10,19 +10,19 @@ export default function initUsuario(sequelize) {
         autoIncrement: true,
       },
       dni: {
-        type: DataTypes.STRING(8),
+        type: DataTypes.STRING(15),
         allowNull: false,
         unique: true,
       },
       email: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
         unique: true,
         validate: { isEmail: true },
       },
       password: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
       },
       nombre: {
         type: DataTypes.STRING,
@@ -30,12 +30,16 @@ export default function initUsuario(sequelize) {
       },
       apellido: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
       },
       _rol: {
         type: DataTypes.STRING,
         allowNull: false,
         defaultValue: 'Usuario',
+      },
+      _version: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
       },
     },
     {

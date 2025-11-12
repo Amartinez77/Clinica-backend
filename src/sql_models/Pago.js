@@ -5,11 +5,13 @@ export default function initPago(sequelize) {
     'Pago',
     {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+      turnoId: { type: DataTypes.INTEGER, allowNull: false },
       fecha: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-      monto: { type: DataTypes.FLOAT, allowNull: false },
+      monto: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
       metodoPago: { type: DataTypes.STRING, allowNull: false },
-      estado: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pendiente' },
+      estado: { type: DataTypes.ENUM('pendiente', 'completado', 'cancelado'), defaultValue: 'pendiente' },
       paymentIdMp: { type: DataTypes.STRING, allowNull: true },
+      _version: { type: DataTypes.INTEGER, defaultValue: 0 },
     },
     { tableName: 'pagos', timestamps: true }
   )
