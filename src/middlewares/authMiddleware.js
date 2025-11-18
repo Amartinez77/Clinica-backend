@@ -19,12 +19,20 @@ import { getModels } from '../config/sequelize.js'
 export const protegerRuta = async (req, res, next) => {
   let token;
 
+  console.log('[protegerRuta] Authorization header:', req.headers.authorization ? 'presente' : 'ausente');
+  if (req.headers.authorization) {
+    console.log('[protegerRuta] Authorization header value:', req.headers.authorization.substring(0, 30) + '...');
+    console.log('[protegerRuta] Starts with Bearer:', req.headers.authorization.startsWith('Bearer'));
+  }
+
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
+      console.log('[protegerRuta] Token extraído:', token ? token.substring(0, 20) + '...' : 'null');
 
       const secret = process.env.JWT_SECRET || jwtConfig.secret
       const decoded = jwt.verify(token, secret);
+      console.log('[protegerRuta] Token decodificado, usuario ID:', decoded?.usuario?.id);
 
       // Buscar al usuario en la base de datos usando el rol para elegir el modelo
       const { Usuario, Paciente, Doctor } = getModels() || {}
@@ -47,6 +55,7 @@ export const protegerRuta = async (req, res, next) => {
 
       // Adjuntar el usuario al objeto req
       req.usuario = usuarioDB;
+      console.log('[protegerRuta] Usuario autenticado, continuando...');
       next();
 
     } catch (error) {

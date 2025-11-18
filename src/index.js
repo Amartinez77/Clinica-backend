@@ -12,6 +12,7 @@ import turnoRoutes from './routes/turnoRoutes.js'
 import archivoRoutes from './routes/archivoRoutes.js'
 import estadisticasRoutes from './routes/estadisticasRoutes.js'
 import pagosRoutes from './routes/pagosRoutes.js'
+import auditRoutes from './routes/auditRoutes.js'
 import { swaggerDocs } from './config/swagger.js'
 
 dotenv.config()
@@ -52,7 +53,7 @@ app.use(morgan('dev'))
 const collectDefaultMetrics = client.collectDefaultMetrics
 collectDefaultMetrics({ prefix: 'clinica_' })
 
-// Histogram para tiempos de respuesta HTTP
+// Histograma para tiempos de respuesta HTTP
 const httpRequestDuration = new client.Histogram({
 	name: 'clinica_http_request_duration_seconds',
 	help: 'Duración de las peticiones HTTP en segundos',
@@ -60,17 +61,61 @@ const httpRequestDuration = new client.Histogram({
 	buckets: [0.05, 0.1, 0.3, 0.5, 1, 2, 5]
 })
 
-// Middleware para medir duración
+// Counter para total de peticiones
+const httpRequestTotal = new client.Counter({
+	name: 'clinica_http_requests_total',
+	help: 'Total de peticiones HTTP recibidas',
+	labelNames: ['method', 'route', 'status_code']
+})
+
+// Gauge para conexiones activas
+const activeConnections = new client.Gauge({
+	name: 'clinica_active_connections',
+	help: 'Número de conexiones activas al servidor',
+	labelNames: ['type']
+})
+
+// Gauge para uso de memoria
+const memoryUsage = new client.Gauge({
+	name: 'clinica_memory_usage_bytes',
+	help: 'Uso de memoria del proceso en bytes',
+	labelNames: ['type']
+})
+
+// Gauge para database connections
+const dbConnectionPool = new client.Gauge({
+	name: 'clinica_db_connection_pool_size',
+	help: 'Tamaño del pool de conexiones a base de datos',
+	labelNames: ['pool_name', 'status']
+})
+
+// Counter para errores
+const errorCounter = new client.Counter({
+	name: 'clinica_errors_total',
+	help: 'Total de errores en la aplicación',
+	labelNames: ['type', 'endpoint']
+})
+
+// Middleware para medir duración y contar requests
 app.use((req, res, next) => {
 	const start = process.hrtime.bigint()
 	res.on('finish', () => {
 		const diff = Number(process.hrtime.bigint() - start) / 1e9
-		// Sanitizar route (usar req.route?.path si existe, fallback a req.path)
 		const route = req.route && req.route.path ? req.route.path : req.path
 		httpRequestDuration.observe({ method: req.method, route, status_code: res.statusCode }, diff)
+		httpRequestTotal.inc({ method: req.method, route, status_code: res.statusCode })
 	})
 	next()
 })
+
+// Actualizar métricas de memoria cada 30 segundos
+setInterval(() => {
+	const memUsage = process.memoryUsage()
+	memoryUsage.set({ type: 'heapUsed' }, memUsage.heapUsed)
+	memoryUsage.set({ type: 'heapTotal' }, memUsage.heapTotal)
+	memoryUsage.set({ type: 'rss' }, memUsage.rss)
+	memoryUsage.set({ type: 'external' }, memUsage.external)
+}, 30000)
 
 // Health
 app.get('/health', async (req, res) => {
@@ -119,6 +164,7 @@ app.use('/api/turnos', turnoRoutes)
 app.use('/api/archivos', archivoRoutes)
 app.use('/api/estadisticas', estadisticasRoutes)
 app.use('/api/pagos', pagosRoutes)
+app.use('/api', auditRoutes)
 
 const port = process.env.PORT || 4000
 

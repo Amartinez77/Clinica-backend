@@ -5,46 +5,47 @@ export default function initUsuario(sequelize) {
     'Usuario',
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT.UNSIGNED,
         primaryKey: true,
         autoIncrement: true,
       },
       dni: {
-        type: DataTypes.STRING(15),
-        allowNull: false,
-        unique: true,
+        type: DataTypes.STRING(32),
+        allowNull: true,
       },
       email: {
         type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
+        allowNull: true,
         validate: { isEmail: true },
       },
       password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       nombre: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: DataTypes.STRING(100),
+        allowNull: true,
       },
       apellido: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      tipo: {
+        type: DataTypes.ENUM('paciente', 'doctor', 'admin'),
         allowNull: false,
       },
-      _rol: {
-        type: DataTypes.STRING,
+      rol: {
+        type: DataTypes.STRING(50),
         allowNull: false,
-        defaultValue: 'Usuario',
-      },
-      _version: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
+        validate: {
+          notEmpty: true,
+          isIn: [['paciente', 'doctor', 'admin']],
+        },
       },
     },
     {
       tableName: 'usuarios',
-      timestamps: true,
+      timestamps: true, // Sequelize usará createdAt y updatedAt por defecto
     }
   )
 }

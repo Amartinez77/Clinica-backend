@@ -5,8 +5,6 @@ import jwtConfig from '../config/jwtConfig.js'
 import bcrypt from 'bcryptjs'
 import { body } from 'express-validator'
 import { handleInputErrors } from '../middlewares/validacionInputs.js'
-import firebaseApp from '../config/firebase.js'
-import { getAuth } from 'firebase-admin/auth'
 
 // Normalizar el nombre del rol para que coincida con lo que espera el frontend
 const normalizeRoleForFrontend = (rawRole) => {
@@ -20,12 +18,11 @@ const normalizeRoleForFrontend = (rawRole) => {
 }
 
 // funcion auxiliar para generar un token JWT
-const generarJWT = (ID, rol) => {
-	const normalized = normalizeRoleForFrontend(rol)
+const generarJWT = (usuario) => {
 	const payload = {
 		usuario: {
-			id: ID,
-			rol: normalized, // rol normalizado para el frontend
+			id: usuario.id,
+			tipo: usuario.tipo,
 		},
 	}
 	const secret = process.env.JWT_SECRET || jwtConfig.secret
@@ -55,45 +52,43 @@ export const loginConDni = [
 
 	async (req, res) => {
 		try {
-			const { dni, password } = req.body
+			const { dni, password, tipo } = req.body
+			console.log('[LOGIN] Solicitud recibida:', { dni, tipo })
 
-			// Intentar buscar por DNI en Usuario, Paciente y Doctor (en ese orden)
-			const { Usuario, Paciente, Doctor } = getModels() || {}
-
-			let registro = null
-			let rol = 'Usuario'
-
-			if (Usuario) {
-				registro = await Usuario.findOne({ where: { dni } })
+			const models = getModels()
+			if (!models) {
+				console.error('[LOGIN] Models no inicializados')
+				return res.status(500).json({ msg: 'Error: Modelos no disponibles' })
 			}
-			if (!registro && Paciente) {
-				registro = await Paciente.findOne({ where: { dni } })
-				if (registro) rol = 'Paciente'
-			}
-			if (!registro && Doctor) {
-				registro = await Doctor.findOne({ where: { dni } })
-				if (registro) rol = 'Doctor'
+			const { Usuario } = models
+
+			const usuario = await Usuario.findOne({ where: { dni, tipo } })
+			console.log('[LOGIN] Usuario encontrado:', usuario ? 'SÍ' : 'NO')
+
+			if (!usuario) {
+				console.log('[LOGIN] DNI o tipo incorrecto - dni:', dni, 'tipo:', tipo)
+				return res.status(401).json({ msg: 'Credenciales inválidas o tipo de usuario incorrecto' })
 			}
 
-			console.log('DEBUG auth: buscado dni=', dni, '=> usuario encontrado=', registro ? registro.id : null)
-			if (!registro) {
-				return res.status(401).json({ msg: 'Credenciales inválidas' })
-			}
-
-			if (!registro.password) {
+			if (!usuario.password) {
+				console.log('[LOGIN] Usuario sin contraseña hasheada')
 				return res.status(401).json({ msg: 'Credenciales inválidas' })
 			}
 
 			// comparar la contraseña hasheada
-			const passwordValido = await bcrypt.compare(password, registro.password)
-			console.log('DEBUG auth: comparar password para usuario', registro.id, '=> resultado=', passwordValido)
+			const passwordValido = await bcrypt.compare(password, usuario.password)
+			console.log('[LOGIN] Validación de contraseña:', passwordValido ? 'VÁLIDA' : 'INVÁLIDA')
 			if (!passwordValido) {
 				return res.status(401).json({ msg: 'Credenciales inválidas' })
 			}
 
-			// Generar el token JWT con rol normalizado
-			const token = generarJWT(registro.id, registro._rol || registro.rol || rol)
-			res.status(200).json({ token })
+			// Generar el token JWT
+			const token = generarJWT(usuario)
+
+			// Obtener el perfil completo
+			const perfil = await obtenerPerfilCompleto(usuario.id, usuario.tipo)
+
+			res.status(200).json({ token, user: perfil })
 		} catch (error) {
 			console.error('Error al iniciar sesión:', error.message)
 			res.status(500).json({ msg: 'Error interno del servidor' })
@@ -104,115 +99,18 @@ export const loginConDni = [
 // obtener información del usuario autenticado
 export const obtenerPerfilUsuario = async (req, res) => {
 	try {
-		// Asegurarnos de enviar un objeto plano y normalizar el rol para el frontend
 		const usuario = req.usuario
 		if (!usuario) return res.status(401).json({ msg: 'No autorizado' })
-		// si es instancia de Sequelize, obtener objeto plano
-		let plain = usuario.get ? usuario.get({ plain: true }) : { ...usuario }
-		// Compatibilidad con frontend legacy: exponer _id además de id
-		if (plain && plain.id && !plain._id) {
-			plain._id = plain.id
+
+		const perfil = await obtenerPerfilCompleto(usuario.id, usuario.tipo)
+
+		if (!perfil) {
+			return res.status(404).json({ msg: 'Perfil no encontrado' })
 		}
-		// Normalizar rol esperado por el frontend
-		plain._rol = normalizeRoleForFrontend(plain._rol || plain.rol)
-		// Debug útil para verificar forma del objeto
-		console.log('[AUTH DEBUG] /auth/me ->', {
-			id: plain.id,
-			_id: plain._id,
-			rol: plain._rol,
-			model: usuario?.constructor?.name,
-		})
-		res.json(plain)
+
+		res.json(perfil)
 	} catch (error) {
 		console.error('Error al obtener el usuario autenticado:', error.message)
-		res.status(500).json({ msg: 'Error interno del servidor' })
-	}
-}
-
-export const loginConFirebase = async (req, res) => {
-	try {
-		console.log('[AUTH DEBUG] /login/firebase - body:', req.body);
-		const { idToken } = req.body
-		
-		if (!idToken) {
-			console.log('[AUTH ERROR] /login/firebase - No idToken provided');
-			return res.status(400).json({ msg: 'Token no proporcionado' });
-		}
-
-		console.log('[AUTH DEBUG] /login/firebase - Verifying token...');
-		// Verificamos el idToken con Firebase Admin
-		const decodedToken = await getAuth().verifyIdToken(idToken)
-		console.log('[AUTH DEBUG] /login/firebase - Token verified:', { 
-			uid: decodedToken.uid,
-			email: decodedToken.email,
-			name: decodedToken.name 
-		});
-		const { user_id, name, email } = decodedToken
-
-		const { Paciente } = getModels()
-		const paciente = await Paciente.findOne({ where: { uid_firebase: user_id } })
-		if (paciente) {
-			const token = generarJWT(paciente.id, paciente._rol || paciente.rol)
-			return res.status(200).json({ token })
-		}
-
-		// Si no existe el paciente, pedimos dni en el frontend
-		return res.status(200).json({
-			dniConfirmado: false,
-			email,
-			user_id,
-			name,
-		})
-	} catch (error) {
-		console.error('Error al verificar el token de Firebase:', error.message)
-		return res.status(401).json({ msg: 'Token inválido o expirado' })
-	}
-}
-
-export const vincularDni = async (req, res) => {
-	try {
-		const { user_id, dni, email, name } = req.body
-
-		// Primero verificar si el DNI existe en el modelo base Usuario
-		const { Usuario, Paciente } = getModels()
-
-		const usuarioExistente = await Usuario.findOne({ where: { dni } })
-
-		if (usuarioExistente) {
-			// Si existe, verificar si es un paciente
-			const paciente = await Paciente.findOne({ where: { dni } })
-
-			if (paciente) {
-				// Es un paciente, vincular Firebase
-				paciente.uid_firebase = user_id
-				paciente.email = email
-				await paciente.save()
-				const token = generarJWT(paciente.id, paciente._rol || paciente.rol)
-				return res.status(200).json({ token })
-			} else {
-				// Es un doctor o administrador
-				return res.status(403).json({
-					msg: 'Solo los pacientes pueden iniciar sesión con Google. Los doctores y administradores deben usar el login con DNI y contraseña.',
-				})
-			}
-		}
-
-		// Si no existe ningún usuario con ese DNI, crear un nuevo paciente
-		const nuevoPaciente = await Paciente.create({
-			dni,
-			uid_firebase: user_id,
-			email,
-			nombre: name,
-			apellido: null,
-			password: null,
-			telefono: null,
-			fechaNacimiento: null,
-		})
-
-		const token = generarJWT(nuevoPaciente.id, nuevoPaciente._rol || nuevoPaciente.rol)
-		res.status(201).json({ token })
-	} catch (error) {
-		console.error('Error al vincular el DNI:', error.message)
 		res.status(500).json({ msg: 'Error interno del servidor' })
 	}
 }
@@ -234,4 +132,68 @@ export const resetPassword = async (req, res) => {
 	await usuario.save()
 
 	res.status(200).json({ msg: 'Contraseña restablecida con éxito' })
+}
+
+// --- Funciones auxiliares ---
+
+async function obtenerPerfilCompleto(usuarioId, tipo) {
+	try {
+		const models = getModels()
+		if (!models) {
+			console.error('[PERFIL] Models no inicializados')
+			throw new Error('Models no disponibles')
+		}
+		
+		console.log('[PERFIL] Modelos disponibles:', Object.keys(models))
+		const { Usuario, Paciente, Doctor } = models
+
+		if (!Usuario) {
+			console.error('[PERFIL] Modelo Usuario no disponible')
+			throw new Error('Usuario model no disponible')
+		}
+
+		const usuarioBase = await Usuario.findByPk(usuarioId, {
+			attributes: { exclude: ['password'] },
+		})
+
+		if (!usuarioBase) {
+			console.log('[PERFIL] Usuario no encontrado:', usuarioId)
+			return null
+		}
+
+		let perfilDetallado = null
+		let perfilFinal = { ...usuarioBase.get({ plain: true }) }
+
+		console.log('[PERFIL] Tipo de usuario:', tipo)
+
+		if (tipo === 'paciente') {
+			if (!Paciente) {
+				console.warn('[PERFIL] Modelo Paciente no disponible')
+				return perfilFinal
+			}
+			perfilDetallado = await Paciente.findOne({ where: { usuario_id: usuarioId } })
+			if (perfilDetallado) {
+				perfilFinal.Paciente = perfilDetallado.get({ plain: true })
+			}
+		} else if (tipo === 'doctor') {
+			if (!Doctor) {
+				console.warn('[PERFIL] Modelo Doctor no disponible')
+				return perfilFinal
+			}
+			perfilDetallado = await Doctor.findOne({
+				where: { usuario_id: usuarioId },
+				include: ['Especialidad'],
+			})
+			if (perfilDetallado) {
+				perfilFinal.Doctor = perfilDetallado.get({ plain: true })
+			}
+		}
+		// Para 'admin', no hay tabla adicional - el perfil está en usuario
+
+		console.log('[PERFIL] Perfil completado para usuarioId:', usuarioId)
+		return perfilFinal
+	} catch (error) {
+		console.error('[PERFIL] Error:', error.message)
+		throw error
+	}
 }

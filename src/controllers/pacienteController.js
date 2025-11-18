@@ -7,57 +7,71 @@ import { Op } from 'sequelize'
 export const registrarPaciente = async (req, res) => {
 	try {
 		console.log('[REGISTRO PACIENTE] Solicitud recibida:', req.body)
-		// aca cambiamos para que el paciente se registre con dni y contraseña
-		// y no con email y contraseña como en el modelo base Usuario
 		const { dni, password, nombre, apellido, telefono, fechaNacimiento, email } = req.body
 		console.log('[REGISTRO PACIENTE] Datos extraídos:', { dni, password, nombre, apellido, telefono, fechaNacimiento, email })
 
 		// Validación de campos obligatorios
-		// Esto podemos hacerlo con un middleware de express-validator
-		// if (!email || !password || !nombre || !apellido || !telefono) {
-		//   return res.status(400).json({ error: 'Todos los campos son obligatorios' });
-		// }
+		if (!dni || !password || !nombre || !apellido || !telefono || !fechaNacimiento) {
+			return res.status(400).json({ error: 'DNI, contraseña, nombre, apellido, teléfono y fecha de nacimiento son obligatorios' })
+		}
 
-		// 1- hay que verificar si el dni ya existe (ese es el identificador ahora, antes era el email)
+		const { Usuario, Paciente } = getModels()
 
-		// valido que el paciente no este registrado por dni
-		const { Paciente } = getModels()
-		let paciente = await Paciente.findOne({ where: { dni } })
-		if (paciente) {
+		// 1. Verificar que el DNI no esté registrado en la tabla Usuario
+		console.log('[REGISTRO PACIENTE] Verificando si DNI ya existe:', dni)
+		let usuarioExistente = await Usuario.findOne({ where: { dni } })
+		if (usuarioExistente) {
+			console.log('[REGISTRO PACIENTE] DNI ya existe:', dni)
 			return res.status(400).json({ error: 'El DNI ya está registrado' })
 		}
 
-		// Si se proporciona un email, verificar que no esté ya registrado
+		// 2. Si se proporciona un email, verificar que no esté registrado en Usuario
+		let emailNormalizado = null
 		if (email && email.trim() !== '') {
-			const pacienteConEmail = await Paciente.findOne({ where: { email: email.trim() } })
-			if (pacienteConEmail) {
+			emailNormalizado = email.trim()
+			console.log('[REGISTRO PACIENTE] Verificando si email ya existe:', emailNormalizado)
+			const usuarioConEmail = await Usuario.findOne({ where: { email: emailNormalizado } })
+			if (usuarioConEmail) {
+				console.log('[REGISTRO PACIENTE] Email ya existe:', emailNormalizado)
 				return res.status(400).json({ error: 'El email ya está registrado' })
 			}
 		}
 
-		// Encriptar la contraseña
+		// 3. Encriptar la contraseña
+		console.log('[REGISTRO PACIENTE] Encriptando contraseña...')
 		const salt = await bcrypt.genSalt(10)
 		const hashedPassword = await bcrypt.hash(password, salt)
 
-		// Normalizar el email: convertir string vacío a null para que funcione con sparse index
-		const emailNormalizado = email && email.trim() !== '' ? email.trim() : null
-
-		// Crear nuevo paciente
-		const nuevoPaciente = await Paciente.create({
+		// 4. Crear usuario primero
+		console.log('[REGISTRO PACIENTE] Creando usuario...')
+		const nuevoUsuario = await Usuario.create({
 			dni,
+			email: emailNormalizado,
 			password: hashedPassword,
 			nombre,
 			apellido,
+			tipo: 'paciente',
+			rol: 'paciente',
+		})
+		console.log('[REGISTRO PACIENTE] Usuario creado:', nuevoUsuario.toJSON())
+
+		// 5. Crear registro de paciente con el usuario_id
+		console.log('[REGISTRO PACIENTE] Creando paciente con usuario_id:', nuevoUsuario.id)
+		const nuevoPaciente = await Paciente.create({
+			usuario_id: nuevoUsuario.id,
 			telefono,
 			fechaNacimiento,
-			email: emailNormalizado, //opcional, pero si se proporciona, debe ser válido
 		})
+		console.log('[REGISTRO PACIENTE] Paciente registrado exitosamente:', nuevoPaciente.toJSON())
 
-		console.log('Paciente registrado exitosamente:', nuevoPaciente.toJSON())
-		res.status(201).json({ message: 'Paciente registrado exitosamente', paciente: nuevoPaciente })
+		res.status(201).json({ 
+			message: 'Paciente registrado exitosamente', 
+			paciente: nuevoPaciente,
+			usuario: nuevoUsuario 
+		})
 	} catch (error) {
 		console.error('[REGISTRO PACIENTE] Error al registrar paciente:', error.message)
-		console.error('[REGISTRO PACIENTE] Stack trace:', error.stack)
+		console.error('[REGISTRO PACIENTE] Full error:', error)
 		if (error.name === 'ValidationError') {
 			let errors = {}
 			Object.keys(error.errors).forEach(key => {
@@ -65,14 +79,20 @@ export const registrarPaciente = async (req, res) => {
 			})
 			return res.status(400).json({ error: 'Error de validación', details: errors })
 		}
-		res.status(500).json({ error: 'Error interno del servidor' })
+		res.status(500).json({ error: 'Error interno del servidor', details: error.message })
 	}
 }
 
 export const getPacientes = async (req, res) => {
 	try {
-		const { Paciente } = getModels()
-		const pacientes = await Paciente.findAll({ attributes: { exclude: ['password'] } })
+		const { Paciente, Usuario } = getModels()
+		const pacientes = await Paciente.findAll({ 
+			include: [{ 
+				model: Usuario, 
+				attributes: { exclude: ['password'] } 
+			}],
+			attributes: { exclude: ['password'] } 
+		})
 		res.status(200).json(pacientes)
 	} catch (error) {
 		console.error('Error al obtener pacientes:', error.message)
@@ -82,8 +102,14 @@ export const getPacientes = async (req, res) => {
 export const getPacienteById = async (req, res) => {
 	try {
 		const { idPaciente } = req.params
-		const { Paciente } = getModels()
-		const paciente = await Paciente.findByPk(idPaciente, { attributes: { exclude: ['password'] } })
+		const { Paciente, Usuario } = getModels()
+		const paciente = await Paciente.findByPk(idPaciente, { 
+			include: [{ 
+				model: Usuario, 
+				attributes: { exclude: ['password'] } 
+			}],
+			attributes: { exclude: ['password'] } 
+		})
 		if (!paciente) {
 			return res.status(404).json({ error: 'Paciente no encontrado' })
 		}
@@ -100,8 +126,16 @@ export const getPacienteByDni = async (req, res) => {
 		// Limpiar y normalizar el DNI
 		const dniNormalizado = dni.trim()
 
-		const { Paciente } = getModels()
-		const paciente = await Paciente.findOne({ where: { dni: dniNormalizado }, attributes: { exclude: ['password'] } })
+		const { Paciente, Usuario } = getModels()
+		// DNI is in Usuario table, so we need to search through the relationship
+		const paciente = await Paciente.findOne({ 
+			include: [{ 
+				model: Usuario, 
+				where: { dni: dniNormalizado },
+				attributes: { exclude: ['password'] } 
+			}],
+			attributes: { exclude: ['password'] } 
+		})
 
 		if (!paciente) {
 			// Para depuración: verificar qué DNI se está buscando

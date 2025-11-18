@@ -2,10 +2,8 @@ import express from 'express'
 const router = express.Router()
 import {
 	loginConDni,
-	loginConFirebase,
 	obtenerPerfilUsuario,
 	resetPassword,
-	vincularDni,
 } from '../controllers/authController.js'
 import { protegerRuta } from '../middlewares/authMiddleware.js'
 
@@ -22,14 +20,8 @@ import { protegerRuta } from '../middlewares/authMiddleware.js'
 router.post('/login', loginConDni) // <-- Ruta unificada para login con DNI
 
 // Ruta para obtener el perfil del usuario autenticado
-router.get('/me', protegerRuta, obtenerPerfilUsuario)
+router.get('/perfil', protegerRuta, obtenerPerfilUsuario)
 
-// Aca agreguen las rutas de login con Firebase/Gmail
-// por ejemplo:
-// router.post('/login/google', (req, res) => res.send('Login con Google (próximamente)'));
-router.post('/login/firebase', loginConFirebase)
-// vincular DNI al usuario autenticado con Firebase
-router.post('/vincular-dni', vincularDni)
 // Ruta para resetear la contraseña del usuario un usuario
 router.post('/reset-password', resetPassword)
 

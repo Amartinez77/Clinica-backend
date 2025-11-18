@@ -8,6 +8,7 @@ import {
 	getDoctoresByName,
 	getDoctoresByEspecialidad,
 	getDoctorById,
+	cambiarEstadoDoctor,
 } from '../controllers/doctorController.js'
 import { body, param } from 'express-validator'
 import { handleInputErrors } from '../middlewares/validacionInputs.js'
@@ -22,7 +23,7 @@ router.post(
 	body('nombre').notEmpty().withMessage('El nombre es obligatorio'),
 	body('apellido').notEmpty().withMessage('El apellido es obligatorio'),
 	body('matricula').notEmpty().withMessage('La matrícula es obligatoria'),
-	body('especialidad').notEmpty().withMessage('La especialidad es obligatoria'),
+	body('especialidadId').notEmpty().withMessage('La especialidad es obligatoria'),
 	body('precioConsulta').isNumeric().withMessage('El precio de la consulta debe ser un número'),
 	body('telefono').optional().isString().withMessage('El teléfono debe ser una cadena de texto'),
 	handleInputErrors,
@@ -45,6 +46,17 @@ router.put(
 	protegerRuta,
 	autorizarRoles(['admin', 'Doctor']),
 	actualizarDoctor
+)
+
+// Cambiar estado de un doctor (activo/inactivo)
+router.put(
+	'/:id/estado',
+	param('id').isInt({ min: 1 }).withMessage('El ID debe ser un entero positivo'),
+	body('estado').isIn(['activo', 'inactivo']).withMessage('El estado debe ser "activo" o "inactivo"'),
+	handleInputErrors,
+	protegerRuta,
+	autorizarRoles(['admin']),
+	cambiarEstadoDoctor
 )
 
 // Eliminar un doctor por ID (borrado lógico)
