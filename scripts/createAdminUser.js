@@ -34,7 +34,8 @@ async function run() {
       console.log(colors.yellow(`Ya existe un usuario con DNI ${DNI}. Actualizando rol y password...`))
       const hashed = await bcrypt.hash(PASSWORD, 10)
       admin.password = hashed
-      admin._rol = 'admin'
+      admin.tipo = 'admin'
+      admin.rol = 'admin'
       admin.nombre = admin.nombre || 'ADMIN'
       admin.apellido = admin.apellido || ''
       await admin.save()
@@ -49,7 +50,8 @@ async function run() {
       password: hashedPassword,
       nombre: 'ADMIN',
       apellido: '',
-      _rol: 'admin',
+      tipo: 'admin',
+      rol: 'admin',
     })
 
     console.log(colors.green(`Administrador creado con éxito.`))
