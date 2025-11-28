@@ -206,9 +206,25 @@ const getTurnosByFecha = async (req, res) => {
 const getTurnosPendientes = async (req, res) => {
 	try {
 		const { Turno, Paciente, Doctor, Archivo } = getModels()
-		const turnos = await Turno.findAll({ where: { estado: 'pendiente' }, include: [{ model: Paciente }, { model: Doctor }, { model: Archivo }] })
-		turnos.reverse()
-		res.json(turnos)
+		const pagina = parseInt(req.query.pagina) || 1
+		const limite = parseInt(req.query.limite) || 5
+		const offset = (pagina - 1) * limite
+
+		const { count, rows } = await Turno.findAndCountAll({ 
+			where: { estado: 'pendiente' }, 
+			include: [{ model: Paciente }, { model: Doctor }, { model: Archivo }],
+			limit: limite,
+			offset: offset,
+			order: [['createdAt', 'DESC']]
+		})
+
+		res.json({
+			data: rows,
+			total: count,
+			pagina: pagina,
+			limite: limite,
+			totalPaginas: Math.ceil(count / limite)
+		})
 	} catch (error) {
 		console.error(error)
 		res.status(500).json({ error: 'Error al obtener los turnos pendientes' })

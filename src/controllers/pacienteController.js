@@ -86,14 +86,31 @@ export const registrarPaciente = async (req, res) => {
 export const getPacientes = async (req, res) => {
 	try {
 		const { Paciente, Usuario } = getModels()
-		const pacientes = await Paciente.findAll({ 
+		
+		// Get pagination parameters from query
+		const pagina = parseInt(req.query.pagina) || 1
+		const limite = parseInt(req.query.limite) || 10
+		const offset = (pagina - 1) * limite
+		
+		// Get pacientes with pagination
+		const { count, rows } = await Paciente.findAndCountAll({
 			include: [{ 
 				model: Usuario, 
 				attributes: { exclude: ['password'] } 
 			}],
-			attributes: { exclude: ['password'] } 
+			attributes: { exclude: ['password'] },
+			limit: limite,
+			offset: offset,
+			order: [['createdAt', 'DESC']]
 		})
-		res.status(200).json(pacientes)
+		
+		res.status(200).json({
+			data: rows,
+			total: count,
+			pagina: pagina,
+			limite: limite,
+			totalPaginas: Math.ceil(count / limite)
+		})
 	} catch (error) {
 		console.error('Error al obtener pacientes:', error.message)
 		res.status(500).json({ error: 'Error interno del servidor' })

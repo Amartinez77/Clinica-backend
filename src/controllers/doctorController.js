@@ -86,25 +86,52 @@ export const registrarDoctor = async (req, res) => {
 // Obtener todos los doctores
 export const getDoctores = async (req, res) => {
 	try {
+		// Get pagination parameters from query
+		const pagina = parseInt(req.query.pagina) || 1
+		const limite = parseInt(req.query.limite) || 10
+		const offset = (pagina - 1) * limite
+		
 		// se usa .select('-password') para no enviar la contraseña al cliente
 		// se usa .populate('especialidad', 'nombre') para obtener el nombre de la especialidad
 		const { Doctor, Especialidad, Usuario } = getModels()
 		
 		if (!Doctor || !Especialidad || !Usuario) {
-			return res.status(200).json([])
+			return res.status(200).json({
+				data: [],
+				total: 0,
+				pagina: pagina,
+				limite: limite,
+				totalPaginas: 0
+			})
 		}
 		
-		const doctores = await Doctor.findAll({ 
+		const { count, rows } = await Doctor.findAndCountAll({
 			attributes: { exclude: ['password'] }, 
 			include: [
 				{ model: Usuario, attributes: { exclude: ['password'] }, required: false },
 				{ model: Especialidad, attributes: ['id', 'nombre'], required: false }
-			] 
+			],
+			limit: limite,
+			offset: offset,
+			order: [['createdAt', 'DESC']]
 		})
-		res.status(200).json(doctores || [])
+		
+		res.status(200).json({
+			data: rows || [],
+			total: count,
+			pagina: pagina,
+			limite: limite,
+			totalPaginas: Math.ceil(count / limite)
+		})
 	} catch (error) {
 		console.error('Error al obtener doctores:', error.message)
-		res.status(200).json([])
+		res.status(200).json({
+			data: [],
+			total: 0,
+			pagina: 1,
+			limite: 10,
+			totalPaginas: 0
+		})
 	}
 }
 
